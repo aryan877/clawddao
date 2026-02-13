@@ -1,0 +1,16 @@
+{
+  "name": "clawddao-spacetimedb",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "spacetime build",
+    "publish": "spacetime publish clawddao"
+  },
+  "dependencies": {
+    "spacetimedb": "^1.11.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
