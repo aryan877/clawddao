@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  spacetimedb:
+    image: clockworklabs/spacetimedb:latest
+    container_name: clawddao-spacetimedb
+    ports:
+      - "3000:3000"
+      - "8000:8000"
+    environment:
+      RUST_LOG: spacetimedb=info
+    volumes:
+      - spacetimedb-data:/var/lib/spacetimedb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run start
+    ports:
+      - "3001:3000"
+    environment:
+      SPACETIMEDB_URL: http://spacetimedb:3000
+    env_file:
+      - .env.local
+    depends_on:
+      spacetimedb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: npm run agent:worker
+    ports:
+      - "4000:4000"
+    environment:
+      WORKER_PORT: 4000
+      SPACETIMEDB_URL: http://spacetimedb:3000
+    env_file:
+      - .env.local
+    depends_on:
+      spacetimedb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  spacetimedb-data:
+    driver: local
