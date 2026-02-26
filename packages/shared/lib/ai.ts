@@ -63,9 +63,17 @@ Provide your analysis as JSON with: summary, risk_assessment (treasury_impact, s
   });
 
   const text = response.choices[0]?.message?.content ?? "{}";
-  // Extract JSON from potential markdown code blocks
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
-  const parsed = JSON.parse(jsonMatch[1]!.trim());
+  // Extract JSON — try markdown code block first, then raw JSON object
+  let jsonStr = text;
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch?.[1]) {
+    jsonStr = codeBlockMatch[1];
+  } else {
+    // Try to find raw JSON object in the response
+    const braceMatch = text.match(/\{[\s\S]*\}/);
+    if (braceMatch) jsonStr = braceMatch[0];
+  }
+  const parsed = JSON.parse(jsonStr.trim());
   return GovernanceAnalysisSchema.parse(parsed);
 }
 
@@ -115,6 +123,13 @@ Respond with JSON: { "values": string[] (3-5 core values), "riskTolerance": "con
   });
 
   const text = response.choices[0]?.message?.content ?? "{}";
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
-  return JSON.parse(jsonMatch[1]!.trim());
+  let jsonStr = text;
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch?.[1]) {
+    jsonStr = codeBlockMatch[1];
+  } else {
+    const braceMatch = text.match(/\{[\s\S]*\}/);
+    if (braceMatch) jsonStr = braceMatch[0];
+  }
+  return JSON.parse(jsonStr.trim());
 }
