@@ -23,7 +23,6 @@
     "test:live": "LIVE_TEST=true vitest run --config vitest.live.config.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
     "@coral-xyz/anchor": "^0.32.1",
     "@metaplex-foundation/mpl-core": "^1.7.0",
     "@metaplex-foundation/umi": "^1.5.1",
@@ -42,6 +41,7 @@
     "helius-sdk": "^2.2.2",
     "lucide-react": "^0.575.0",
     "next": "16.1.6",
+    "openai": "^4.104.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",

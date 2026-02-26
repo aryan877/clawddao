@@ -1,19 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Mock @anthropic-ai/sdk before importing the module under test
+// Mock openai SDK before importing the module under test
 // ---------------------------------------------------------------------------
 const mockCreate = vi.fn();
-const mockStream = vi.fn();
 
-vi.mock('@anthropic-ai/sdk', () => {
-  class MockAnthropic {
-    messages = {
-      create: mockCreate,
-      stream: mockStream,
+vi.mock('openai', () => {
+  class MockOpenAI {
+    chat = {
+      completions: {
+        create: mockCreate,
+      },
     };
   }
-  return { default: MockAnthropic };
+  return { default: MockOpenAI };
 });
 
 describe('ai', () => {
@@ -25,7 +25,7 @@ describe('ai', () => {
   // analyzeProposal
   // -----------------------------------------------------------------------
   describe('analyzeProposal', () => {
-    it('returns structured analysis from Claude response', async () => {
+    it('returns structured analysis from GLM-5 response', async () => {
       const analysisData = {
         summary: 'Proposal to allocate 1000 SOL for development grants.',
         risk_assessment: {
@@ -43,8 +43,8 @@ describe('ai', () => {
       };
 
       mockCreate.mockResolvedValueOnce({
-        content: [
-          { type: 'text', text: JSON.stringify(analysisData) },
+        choices: [
+          { message: { content: JSON.stringify(analysisData) } },
         ],
       });
 
@@ -62,13 +62,14 @@ describe('ai', () => {
       expect(result.recommendation.vote).toBe('FOR');
       expect(result.recommendation.confidence).toBe(0.87);
 
-      // Verify Claude was called with correct model and structure
+      // Verify GLM-5 was called with correct model and structure
       expect(mockCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockCreate.mock.calls[0][0];
-      expect(callArgs.model).toBe('claude-sonnet-4-20250514');
+      expect(callArgs.model).toBe('glm-5');
       expect(callArgs.max_tokens).toBe(1024);
-      expect(callArgs.messages).toHaveLength(1);
-      expect(callArgs.messages[0].role).toBe('user');
+      expect(callArgs.messages).toHaveLength(2);
+      expect(callArgs.messages[0].role).toBe('system');
+      expect(callArgs.messages[1].role).toBe('user');
     });
 
     it('extracts JSON from markdown code blocks', async () => {
@@ -89,10 +90,11 @@ describe('ai', () => {
       };
 
       mockCreate.mockResolvedValueOnce({
-        content: [
+        choices: [
           {
-            type: 'text',
-            text: '```json\n' + JSON.stringify(analysisData) + '\n```',
+            message: {
+              content: '```json\n' + JSON.stringify(analysisData) + '\n```',
+            },
           },
         ],
       });
@@ -127,7 +129,7 @@ describe('ai', () => {
       };
 
       mockCreate.mockResolvedValueOnce({
-        content: [{ type: 'text', text: JSON.stringify(analysisData) }],
+        choices: [{ message: { content: JSON.stringify(analysisData) } }],
       });
 
       const { analyzeProposal } = await import('@shared/lib/ai');
@@ -143,7 +145,8 @@ describe('ai', () => {
       );
 
       const callArgs = mockCreate.mock.calls[0][0];
-      expect(callArgs.system).toContain('transparency and decentralization');
+      const systemMsg = callArgs.messages.find((m: { role: string }) => m.role === 'system');
+      expect(systemMsg.content).toContain('transparency and decentralization');
     });
   });
 
@@ -151,7 +154,7 @@ describe('ai', () => {
   // generateAgentConfig
   // -----------------------------------------------------------------------
   describe('generateAgentConfig', () => {
-    it('returns config object from Claude response', async () => {
+    it('returns config object from GLM-5 response', async () => {
       const configData = {
         values: ['transparency', 'security', 'decentralization'],
         riskTolerance: 'moderate',
@@ -161,7 +164,7 @@ describe('ai', () => {
       };
 
       mockCreate.mockResolvedValueOnce({
-        content: [{ type: 'text', text: JSON.stringify(configData) }],
+        choices: [{ message: { content: JSON.stringify(configData) } }],
       });
 
       const { generateAgentConfig } = await import('@shared/lib/ai');
@@ -176,7 +179,7 @@ describe('ai', () => {
       expect(result.focusAreas).toContain('treasury management');
 
       // Verify model used
-      expect(mockCreate.mock.calls[0][0].model).toBe('claude-sonnet-4-20250514');
+      expect(mockCreate.mock.calls[0][0].model).toBe('glm-5');
       expect(mockCreate.mock.calls[0][0].max_tokens).toBe(512);
     });
 
@@ -190,8 +193,8 @@ describe('ai', () => {
       };
 
       mockCreate.mockResolvedValueOnce({
-        content: [
-          { type: 'text', text: '```json\n' + JSON.stringify(configData) + '\n```' },
+        choices: [
+          { message: { content: '```json\n' + JSON.stringify(configData) + '\n```' } },
         ],
       });
 
@@ -206,15 +209,15 @@ describe('ai', () => {
   // streamChat
   // -----------------------------------------------------------------------
   describe('streamChat', () => {
-    it('returns async iterable stream from Anthropic SDK', async () => {
+    it('returns stream from OpenAI SDK', async () => {
       const mockStreamResponse = {
         [Symbol.asyncIterator]: async function* () {
-          yield { type: 'content_block_delta', delta: { text: 'Hello' } };
-          yield { type: 'content_block_delta', delta: { text: ' world' } };
+          yield { choices: [{ delta: { content: 'Hello' } }] };
+          yield { choices: [{ delta: { content: ' world' } }] };
         },
       };
 
-      mockStream.mockResolvedValueOnce(mockStreamResponse);
+      mockCreate.mockResolvedValueOnce(mockStreamResponse);
 
       const { streamChat } = await import('@shared/lib/ai');
       const stream = await streamChat([
@@ -222,18 +225,20 @@ describe('ai', () => {
       ]);
 
       expect(stream).toBeDefined();
-      expect(mockStream).toHaveBeenCalledTimes(1);
+      expect(mockCreate).toHaveBeenCalledTimes(1);
 
-      const callArgs = mockStream.mock.calls[0][0];
-      expect(callArgs.model).toBe('claude-sonnet-4-20250514');
+      const callArgs = mockCreate.mock.calls[0][0];
+      expect(callArgs.model).toBe('glm-5');
       expect(callArgs.max_tokens).toBe(2048);
-      expect(callArgs.messages).toEqual([
+      expect(callArgs.stream).toBe(true);
+      expect(callArgs.messages[0].role).toBe('system');
+      expect(callArgs.messages[1]).toEqual(
         { role: 'user', content: 'What is a DAO?' },
-      ]);
+      );
     });
 
     it('includes system context when provided', async () => {
-      mockStream.mockResolvedValueOnce({});
+      mockCreate.mockResolvedValueOnce({});
 
       const { streamChat } = await import('@shared/lib/ai');
       await streamChat(
@@ -241,8 +246,9 @@ describe('ai', () => {
         'Proposal: Allocate 500 SOL',
       );
 
-      const callArgs = mockStream.mock.calls[0][0];
-      expect(callArgs.system).toContain('Allocate 500 SOL');
+      const callArgs = mockCreate.mock.calls[0][0];
+      const systemMsg = callArgs.messages.find((m: { role: string }) => m.role === 'system');
+      expect(systemMsg.content).toContain('Allocate 500 SOL');
     });
   });
 });

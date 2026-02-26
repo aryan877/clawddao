@@ -29,7 +29,7 @@ const mockIsConfigured = vi.mocked(isConfigured);
 describe('GET /api/health', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.ANTHROPIC_API_KEY = 'test-key';
+    process.env.ZAI_API_KEY = 'test-key';
     process.env.TAPESTRY_API_KEY = 'test-key';
   });
 
@@ -51,7 +51,7 @@ describe('GET /api/health', () => {
         checks: expect.objectContaining({
           spacetimedb: expect.objectContaining({ ok: true }),
           solanaRpc: expect.objectContaining({ ok: true }),
-          anthropic: expect.objectContaining({ ok: true }),
+          zai: expect.objectContaining({ ok: true }),
           tapestry: expect.objectContaining({ ok: true }),
           privy: expect.objectContaining({ ok: true }),
         }),
@@ -122,8 +122,8 @@ describe('GET /api/health', () => {
     );
   });
 
-  it('returns degraded when ANTHROPIC_API_KEY is missing', async () => {
-    delete process.env.ANTHROPIC_API_KEY;
+  it('returns degraded when ZAI_API_KEY is missing', async () => {
+    delete process.env.ZAI_API_KEY;
 
     mockHealthCheck.mockResolvedValue(true);
     mockGetConnection.mockReturnValue({
@@ -139,7 +139,7 @@ describe('GET /api/health', () => {
       expect.objectContaining({
         status: 'degraded',
         checks: expect.objectContaining({
-          anthropic: expect.objectContaining({ ok: false }),
+          zai: expect.objectContaining({ ok: false }),
         }),
       }),
     );

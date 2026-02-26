@@ -35,9 +35,10 @@ export async function POST(request: NextRequest) {
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const event of stream) {
-            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-              const data = JSON.stringify({ type: "text", text: event.delta.text });
+          for await (const chunk of stream) {
+            const content = chunk.choices?.[0]?.delta?.content;
+            if (content) {
+              const data = JSON.stringify({ type: "text", text: content });
               controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
             }
           }

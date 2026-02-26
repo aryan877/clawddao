@@ -103,8 +103,8 @@ describe('POST /api/ai/chat', () => {
     mockVerifyAuth.mockResolvedValue({ authenticated: true, userId: VALID_USER_ID });
 
     const streamEvents = [
-      { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } },
-      { type: 'content_block_delta', delta: { type: 'text_delta', text: ' world' } },
+      { choices: [{ delta: { content: 'Hello' } }] },
+      { choices: [{ delta: { content: ' world' } }] },
     ];
     mockStreamChat.mockResolvedValue(makeAsyncIterable(streamEvents) as never);
 

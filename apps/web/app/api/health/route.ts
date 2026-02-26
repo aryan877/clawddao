@@ -23,8 +23,8 @@ export async function GET() {
   }
   checks.solanaRpc = { ok: rpcOk, latencyMs: Date.now() - rpcStart };
 
-  checks.anthropic = {
-    ok: !!process.env.ANTHROPIC_API_KEY,
+  checks.zai = {
+    ok: !!process.env.ZAI_API_KEY,
     latencyMs: 0,
   };
 

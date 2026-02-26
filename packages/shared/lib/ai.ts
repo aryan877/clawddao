@@ -1,7 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { z } from "zod";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new OpenAI({
+  apiKey: process.env.ZAI_API_KEY,
+  baseURL: "https://api.z.ai/api/paas/v4/",
+});
 
 export const GovernanceAnalysisSchema = z.object({
   summary: z.string().describe("2-3 sentence summary of the proposal"),
@@ -44,14 +47,16 @@ ${proposal.treasuryBalance ? `**Treasury Balance**: ${proposal.treasuryBalance} 
 
 Provide your analysis as JSON with: summary, risk_assessment (treasury_impact, security_risk, centralization_risk, overall_risk_score 0-100), recommendation (vote FOR/AGAINST/ABSTAIN, confidence 0-1, reasoning, conditions array).`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await client.chat.completions.create({
+    model: "glm-5",
     max_tokens: 1024,
-    messages: [{ role: "user", content: userPrompt }],
-    system: systemPrompt,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
-  const text = response.content.find(b => b.type === "text")?.text ?? "{}";
+  const text = response.choices[0]?.message?.content ?? "{}";
   // Extract JSON from potential markdown code blocks
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
   const parsed = JSON.parse(jsonMatch[1]!.trim());
@@ -66,11 +71,14 @@ export async function streamChat(
 ${systemContext ? `\nContext: ${systemContext}` : ""}
 Be concise, accurate, and helpful. When discussing proposals, always consider risks and tradeoffs.`;
 
-  return anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
+  return client.chat.completions.create({
+    model: "glm-5",
     max_tokens: 2048,
-    system,
-    messages,
+    messages: [
+      { role: "system", content: system },
+      ...messages,
+    ],
+    stream: true,
   });
 }
 
@@ -81,21 +89,26 @@ export async function generateAgentConfig(naturalLanguageValues: string): Promis
   confidenceThreshold: number;
   focusAreas: string[];
 }> {
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
+  const response = await client.chat.completions.create({
+    model: "glm-5",
     max_tokens: 512,
-    messages: [{
-      role: "user",
-      content: `Convert this natural language governance philosophy into a structured agent configuration:
+    messages: [
+      {
+        role: "system",
+        content: "Extract structured governance preferences from natural language. Respond only with valid JSON.",
+      },
+      {
+        role: "user",
+        content: `Convert this natural language governance philosophy into a structured agent configuration:
 
 "${naturalLanguageValues}"
 
-Respond with JSON: { "values": string[] (3-5 core values), "riskTolerance": "conservative"|"moderate"|"aggressive", "autoVote": boolean (should the agent vote autonomously?), "confidenceThreshold": number (0-1, minimum confidence to auto-vote), "focusAreas": string[] (governance areas of interest) }`
-    }],
-    system: "Extract structured governance preferences from natural language. Respond only with valid JSON.",
+Respond with JSON: { "values": string[] (3-5 core values), "riskTolerance": "conservative"|"moderate"|"aggressive", "autoVote": boolean (should the agent vote autonomously?), "confidenceThreshold": number (0-1, minimum confidence to auto-vote), "focusAreas": string[] (governance areas of interest) }`,
+      },
+    ],
   });
 
-  const text = response.content.find(b => b.type === "text")?.text ?? "{}";
+  const text = response.choices[0]?.message?.content ?? "{}";
   const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
   return JSON.parse(jsonMatch[1]!.trim());
 }
