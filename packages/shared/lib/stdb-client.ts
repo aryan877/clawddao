@@ -340,22 +340,27 @@ export async function getAgentById(agentId: bigint): Promise<AgentRow | null> {
 }
 
 export async function getAllActiveAgents(): Promise<AgentRow[]> {
-  return querySQL<AgentRow>(
+  const rows = await querySQL<AgentRow>(
     'SELECT * FROM agents WHERE is_active = true',
   );
+  // SpacetimeDB has no ORDER BY — sort by total_votes descending client-side
+  return rows.sort((a, b) => (b.total_votes ?? 0) - (a.total_votes ?? 0));
 }
 
 export async function getVotesByAgent(agentId: bigint): Promise<VoteRow[]> {
-  return querySQL<VoteRow>(
+  const rows = await querySQL<VoteRow>(
     `SELECT * FROM votes WHERE agent_id = ${agentId.toString()}`,
   );
+  // Sort newest first by created_at
+  return rows.sort((a, b) => Number(b.created_at ?? 0) - Number(a.created_at ?? 0));
 }
 
 export async function getVotesByProposal(proposalAddress: string): Promise<VoteRow[]> {
   const safeProposal = escapeSqlString(proposalAddress);
-  return querySQL<VoteRow>(
+  const rows = await querySQL<VoteRow>(
     `SELECT * FROM votes WHERE proposal_address = '${safeProposal}'`,
   );
+  return rows.sort((a, b) => Number(b.created_at ?? 0) - Number(a.created_at ?? 0));
 }
 
 export async function getVoteByAgentAndProposal(
@@ -364,7 +369,7 @@ export async function getVoteByAgentAndProposal(
 ): Promise<VoteRow | null> {
   const safeVoteKey = escapeSqlString(toVoteKey(agentId, proposalAddress));
   const rows = await querySQL<VoteRow>(
-    `SELECT * FROM votes WHERE vote_key = '${safeVoteKey}'`,
+    `SELECT * FROM votes WHERE vote_key = '${safeVoteKey}' LIMIT 1`,
   );
   return rows[0] ?? null;
 }
@@ -380,7 +385,7 @@ export async function getAIAnalysisByAgentAndProposal(
 ): Promise<AIAnalysisRow | null> {
   const safeAnalysisKey = escapeSqlString(toVoteKey(agentId, proposalAddress));
   const rows = await querySQL<AIAnalysisRow>(
-    `SELECT * FROM ai_analyses WHERE analysis_key = '${safeAnalysisKey}'`,
+    `SELECT * FROM ai_analyses WHERE analysis_key = '${safeAnalysisKey}' LIMIT 1`,
   );
   return rows[0] ?? null;
 }
@@ -398,10 +403,12 @@ export async function getDelegationsByWallet(wallet: string): Promise<Delegation
   );
 }
 
-export async function getActivityLog(agentId: bigint): Promise<ActivityRow[]> {
-  return querySQL<ActivityRow>(
-    `SELECT * FROM activity_log WHERE agent_id = ${agentId.toString()}`,
+export async function getActivityLog(agentId: bigint, limit = 50): Promise<ActivityRow[]> {
+  const rows = await querySQL<ActivityRow>(
+    `SELECT * FROM activity_log WHERE agent_id = ${agentId.toString()} LIMIT ${limit}`,
   );
+  // Sort newest first
+  return rows.sort((a, b) => Number(b.created_at ?? 0) - Number(a.created_at ?? 0));
 }
 
 /**
