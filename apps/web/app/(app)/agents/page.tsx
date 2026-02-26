@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bot, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AgentCard } from '@/components/agent/AgentCard';
-import { useAuthFetch } from '@/hooks/useAuthFetch';
+import { useTable } from 'spacetimedb/react';
+import { tables } from '@/module_bindings';
 import type { Agent } from '@shared/types/governance';
 
 function AgentsSkeleton() {
@@ -42,61 +42,26 @@ function AgentsSkeleton() {
 }
 
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const authFetch = useAuthFetch();
+  const [rows, isReady] = useTable(tables.agents);
 
-  useEffect(() => {
-    async function fetchAgents() {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const res = await authFetch('/api/agents');
-        if (!res.ok) {
-          // If no agents API exists yet, just show empty state
-          if (res.status === 404) {
-            setAgents([]);
-            return;
-          }
-          throw new Error(`Failed to fetch agents: ${res.statusText}`);
-        }
-        const data: Agent[] = await res.json();
-        setAgents(data);
-      } catch (err) {
-        // Gracefully handle missing endpoint
-        console.error('Failed to load agents:', err);
-        setAgents([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchAgents();
-  }, []);
+  if (!isReady) return <AgentsSkeleton />;
 
-  if (isLoading) return <AgentsSkeleton />;
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-destructive/50 bg-destructive/5 py-20">
-        <AlertCircle className="h-10 w-10 text-destructive" />
-        <h3 className="mt-4 text-base font-semibold text-foreground">
-          Failed to load agents
-        </h3>
-        <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+  // Map SpacetimeDB rows to Agent type used by AgentCard
+  const agents: Agent[] = rows.map((r) => ({
+    id: r.id.toString(),
+    owner: r.ownerWallet,
+    name: r.name,
+    valuesProfile: r.valuesProfile,
+    configJson: JSON.parse(r.configJson || '{}'),
+    isActive: r.isActive,
+    totalVotes: r.totalVotes,
+    accuracy: r.accuracyScore,
+    delegationCount: r.delegationCount,
+    createdAt: r.createdAt.toDate(),
+  }));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">AI Agents</h1>
         <Link href="/agents/create">

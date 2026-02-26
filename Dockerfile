@@ -19,9 +19,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install production dependencies (tsx needed for worker)
+# Install production dependencies (tsx needed for worker, typescript for next.config.ts)
 COPY package*.json ./
-RUN npm ci --only=production --legacy-peer-deps
+RUN npm ci --only=production --legacy-peer-deps && npm install typescript --legacy-peer-deps
 
 # Copy built Next.js app
 COPY --from=builder /app/apps/web/.next ./apps/web/.next

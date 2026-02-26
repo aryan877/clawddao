@@ -1,19 +1,17 @@
-version: '3.8'
-
 services:
   spacetimedb:
-    image: clockworklabs/spacetimedb:latest
+    image: clockworklabs/spacetime:latest
     container_name: clawddao-spacetimedb
+    command: start
     ports:
       - "3000:3000"
-      - "8000:8000"
     environment:
       RUST_LOG: spacetimedb=info
     volumes:
       - spacetimedb-data:/var/lib/spacetimedb
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/database/ping"]
       interval: 10s
       timeout: 5s
       retries: 5

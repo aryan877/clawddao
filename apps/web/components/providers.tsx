@@ -1,15 +1,21 @@
 'use client';
 import { PrivyProvider } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { SpacetimeDBProvider } from 'spacetimedb/react';
+import { connectionBuilder } from '@/lib/spacetimedb';
 
 const solanaConnectors = toSolanaWalletConnectors();
 const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID ?? '';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Privy validates app ID format — if not set, render children without auth
-  // This allows the build to succeed and the app to run in dev without a key
+  const inner = (
+    <SpacetimeDBProvider connectionBuilder={connectionBuilder}>
+      {children}
+    </SpacetimeDBProvider>
+  );
+
   if (!privyAppId || privyAppId.length < 10) {
-    return <>{children}</>;
+    return inner;
   }
 
   return (
@@ -22,7 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         externalWallets: { solana: { connectors: solanaConnectors } },
       }}
     >
-      {children}
+      {inner}
     </PrivyProvider>
   );
 }

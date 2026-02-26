@@ -1,10 +1,16 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-const client = new OpenAI({
-  apiKey: process.env.ZAI_API_KEY,
-  baseURL: "https://api.z.ai/api/paas/v4/",
-});
+let _client: OpenAI | null = null;
+function getClient() {
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: process.env.ZAI_API_KEY || "placeholder",
+      baseURL: "https://api.z.ai/api/paas/v4/",
+    });
+  }
+  return _client;
+}
 
 export const GovernanceAnalysisSchema = z.object({
   summary: z.string().describe("2-3 sentence summary of the proposal"),
@@ -47,7 +53,7 @@ ${proposal.treasuryBalance ? `**Treasury Balance**: ${proposal.treasuryBalance} 
 
 Provide your analysis as JSON with: summary, risk_assessment (treasury_impact, security_risk, centralization_risk, overall_risk_score 0-100), recommendation (vote FOR/AGAINST/ABSTAIN, confidence 0-1, reasoning, conditions array).`;
 
-  const response = await client.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: "glm-5",
     max_tokens: 1024,
     messages: [
@@ -71,7 +77,7 @@ export async function streamChat(
 ${systemContext ? `\nContext: ${systemContext}` : ""}
 Be concise, accurate, and helpful. When discussing proposals, always consider risks and tradeoffs.`;
 
-  return client.chat.completions.create({
+  return getClient().chat.completions.create({
     model: "glm-5",
     max_tokens: 2048,
     messages: [
@@ -89,7 +95,7 @@ export async function generateAgentConfig(naturalLanguageValues: string): Promis
   confidenceThreshold: number;
   focusAreas: string[];
 }> {
-  const response = await client.chat.completions.create({
+  const response = await getClient().chat.completions.create({
     model: "glm-5",
     max_tokens: 512,
     messages: [

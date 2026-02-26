@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --dir apps/web",
-    "build": "next build apps/web",
-    "start": "next start --dir apps/web",
+    "build": "next build apps/web --webpack",
+    "start": "next start apps/web",
     "lint": "eslint",
     "agent:worker": "tsx --tsconfig apps/worker/tsconfig.json apps/worker/server/index.ts",
     "agent:worker:loop": "tsx --tsconfig apps/worker/tsconfig.json apps/worker/agent-worker.ts",
@@ -46,6 +46,7 @@
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
     "socialfi": "^0.1.14",
+    "spacetimedb": "^2.0.1",
     "tailwind-merge": "^3.5.0",
     "tsx": "^4.20.6",
     "zod": "^4.3.6"

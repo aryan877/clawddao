@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Activity, FileText, Vote, AlertCircle } from 'lucide-react';
+import { Activity, FileText, Vote, AlertCircle, Bot, BarChart3 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DaoCard } from '@/components/governance/DaoCard';
 import { ProposalCard } from '@/components/governance/ProposalCard';
+import { useTable } from 'spacetimedb/react';
+import { tables } from '@/module_bindings';
 import type { Proposal } from '@shared/types/governance';
 
 interface RealmResponse {
@@ -76,8 +78,8 @@ function StatCard({
 function DashboardSkeleton() {
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="flex items-center gap-4 p-5">
               <Skeleton className="h-10 w-10 rounded-lg" />
@@ -135,6 +137,10 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Live stats from SpacetimeDB via WebSocket
+  const [agentRows] = useTable(tables.agents);
+  const [voteRows] = useTable(tables.votes);
+
   useEffect(() => {
     async function fetchRealms() {
       try {
@@ -179,10 +185,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard icon={Activity} label="DAOs Loaded" value={realms.length} />
         <StatCard icon={FileText} label="Total Proposals" value={totalProposals} />
         <StatCard icon={Vote} label="Active Proposals" value={activeProposals.length} />
+        <StatCard icon={Bot} label="Active Agents" value={agentRows.filter(a => a.isActive).length} />
+        <StatCard icon={BarChart3} label="Total Votes" value={voteRows.length} />
       </div>
 
       <section>
