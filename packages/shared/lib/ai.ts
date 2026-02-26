@@ -55,21 +55,25 @@ Provide your analysis as JSON with: summary, risk_assessment (treasury_impact, s
 
   const response = await getClient().chat.completions.create({
     model: "glm-5",
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
   });
 
-  const text = response.choices[0]?.message?.content ?? "{}";
-  // Extract JSON — try markdown code block first, then raw JSON object
+  const msg = response.choices[0]?.message;
+  // GLM-5 may return content in `content` or `reasoning_content`
+  const text = msg?.content
+    || (msg as unknown as Record<string, unknown>)?.reasoning_content as string
+    || "{}";
+
+  // Extract JSON from response — handle code blocks, raw JSON, or mixed text
   let jsonStr = text;
   const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch?.[1]) {
     jsonStr = codeBlockMatch[1];
   } else {
-    // Try to find raw JSON object in the response
     const braceMatch = text.match(/\{[\s\S]*\}/);
     if (braceMatch) jsonStr = braceMatch[0];
   }

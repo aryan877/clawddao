@@ -1,10 +1,10 @@
 {
   "network": "devnet",
-  "realmName": "ClawdDAO-Test-1772107204398",
-  "realmAccount": "GeXo3Cj6YqYpVucqmAyaL2TPHD1sCGVx1uN9wm1i9GWj",
-  "communityMint": "B1hjjD1LjoUaVKAx9HADQeGSApLeqJxQ9SJQjHnDxBVp",
-  "governanceAccount": "4ENWttwbkPAbyrjdLkNGZ4iTf2bLsM8G98uDKpKGwqhK",
-  "proposalAccount": "3D2FStH92TpCPTWooFK4H66ibDmdMka427cA8RsmrjZ2",
-  "tokenOwnerRecord": "5f2LH9HCSb5a7iBBMPQbPKHQYsWFwUVGN899Qk2KfiU2",
+  "realmName": "ClawdDAO-Test-1772119617441",
+  "realmAccount": "j3JUuwBzzh1VHcE8gskSXbjjemK4kxZjvnvWfBLrRdk",
+  "communityMint": "DUbjFBEzFaetxPFtkj3qHehbnAnKbANSP8vrRc1bU7oQ",
+  "governanceAccount": "BSFmGCp182MtA7zwao7zZE5X9ggeqUtP3kHyyvw4Q2aS",
+  "proposalAccount": "5wtzgyNpsPwFwuEgQi24e4fsXDeEDpggGE4UN1rgxjMj",
+  "tokenOwnerRecord": "4aW8j7Ab5eVdgduAjSWEsXgFSK9D9ZWdexk2itWu3sSV",
   "payer": "Cg8XMLSuEf5CUwnyr4GuM6mJRAPa9c1PJs6q3k5BmiM5"
 }
