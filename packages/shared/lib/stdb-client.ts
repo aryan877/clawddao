@@ -26,11 +26,13 @@ async function getIdentityToken(): Promise<{ identity: string; token: string }> 
     throw new Error(`SpacetimeDB identity request failed: ${res.status} ${res.statusText}`);
   }
 
-  const identity = res.headers.get('spacetime-identity');
-  const token = res.headers.get('spacetime-identity-token');
+  // SpacetimeDB v2 returns identity/token in body (v1 used headers)
+  const body = await res.json() as { identity?: string; token?: string };
+  const identity = body.identity ?? res.headers.get('spacetime-identity');
+  const token = body.token ?? res.headers.get('spacetime-identity-token');
 
   if (!identity || !token) {
-    throw new Error('SpacetimeDB did not return identity headers');
+    throw new Error('SpacetimeDB did not return identity/token');
   }
 
   cachedIdentity = identity;
