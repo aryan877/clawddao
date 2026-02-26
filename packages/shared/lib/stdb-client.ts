@@ -321,7 +321,7 @@ export interface TrackedRealmRow {
 
 export async function getTrackedRealms(): Promise<TrackedRealmRow[]> {
   return querySQL<TrackedRealmRow>(
-    'SELECT * FROM tracked_realms WHERE is_active = true ORDER BY id ASC',
+    'SELECT * FROM tracked_realms WHERE is_active = true',
   );
 }
 
@@ -341,20 +341,20 @@ export async function getAgentById(agentId: bigint): Promise<AgentRow | null> {
 
 export async function getAllActiveAgents(): Promise<AgentRow[]> {
   return querySQL<AgentRow>(
-    'SELECT * FROM agents WHERE is_active = true ORDER BY total_votes DESC',
+    'SELECT * FROM agents WHERE is_active = true',
   );
 }
 
 export async function getVotesByAgent(agentId: bigint): Promise<VoteRow[]> {
   return querySQL<VoteRow>(
-    `SELECT * FROM votes WHERE agent_id = ${agentId.toString()} ORDER BY created_at DESC`,
+    `SELECT * FROM votes WHERE agent_id = ${agentId.toString()}`,
   );
 }
 
 export async function getVotesByProposal(proposalAddress: string): Promise<VoteRow[]> {
   const safeProposal = escapeSqlString(proposalAddress);
   return querySQL<VoteRow>(
-    `SELECT * FROM votes WHERE proposal_address = '${safeProposal}' ORDER BY created_at DESC`,
+    `SELECT * FROM votes WHERE proposal_address = '${safeProposal}'`,
   );
 }
 
@@ -364,7 +364,7 @@ export async function getVoteByAgentAndProposal(
 ): Promise<VoteRow | null> {
   const safeVoteKey = escapeSqlString(toVoteKey(agentId, proposalAddress));
   const rows = await querySQL<VoteRow>(
-    `SELECT * FROM votes WHERE vote_key = '${safeVoteKey}' LIMIT 1`,
+    `SELECT * FROM votes WHERE vote_key = '${safeVoteKey}'`,
   );
   return rows[0] ?? null;
 }
@@ -380,7 +380,7 @@ export async function getAIAnalysisByAgentAndProposal(
 ): Promise<AIAnalysisRow | null> {
   const safeAnalysisKey = escapeSqlString(toVoteKey(agentId, proposalAddress));
   const rows = await querySQL<AIAnalysisRow>(
-    `SELECT * FROM ai_analyses WHERE analysis_key = '${safeAnalysisKey}' LIMIT 1`,
+    `SELECT * FROM ai_analyses WHERE analysis_key = '${safeAnalysisKey}'`,
   );
   return rows[0] ?? null;
 }
@@ -398,9 +398,9 @@ export async function getDelegationsByWallet(wallet: string): Promise<Delegation
   );
 }
 
-export async function getActivityLog(agentId: bigint, limit = 50): Promise<ActivityRow[]> {
+export async function getActivityLog(agentId: bigint): Promise<ActivityRow[]> {
   return querySQL<ActivityRow>(
-    `SELECT * FROM activity_log WHERE agent_id = ${agentId.toString()} ORDER BY created_at DESC LIMIT ${limit}`,
+    `SELECT * FROM activity_log WHERE agent_id = ${agentId.toString()}`,
   );
 }
 
