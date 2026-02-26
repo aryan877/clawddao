@@ -125,10 +125,15 @@ export async function querySQL<T = Record<string, unknown>>(
   if (!firstResult || !firstResult.rows) return [];
 
   const schema = firstResult.schema as {
-    elements?: Array<{ name?: string; algebraic_type?: unknown }>;
+    elements?: Array<{ name?: string | { some: string }; algebraic_type?: unknown }>;
   };
 
-  const columnNames = schema.elements?.map((e) => e.name ?? '') ?? [];
+  // SpacetimeDB v2 wraps column names in { some: "name" } instead of plain strings
+  const columnNames = schema.elements?.map((e) => {
+    if (typeof e.name === 'string') return e.name;
+    if (e.name && typeof e.name === 'object' && 'some' in e.name) return e.name.some;
+    return '';
+  }) ?? [];
 
   return firstResult.rows.map((row) => {
     const obj: Record<string, unknown> = {};
