@@ -327,6 +327,26 @@ export const store_ai_analysis = spacetimedb.reducer(
   }
 );
 
+export const update_agent_wallet = spacetimedb.reducer(
+  'update_agent_wallet',
+  {
+    agent_id: t.u64(),
+    privy_wallet_id: t.string(),
+    privy_wallet_address: t.string(),
+  },
+  (ctx, args) => {
+    const agent = ctx.db.agents.id.find(args.agent_id);
+    if (!agent) throw new Error('Agent not found');
+
+    ctx.db.agents.id.update({
+      ...agent,
+      privy_wallet_id: args.privy_wallet_id,
+      privy_wallet_address: args.privy_wallet_address,
+      updated_at: ctx.timestamp,
+    });
+  }
+);
+
 export const add_tracked_realm = spacetimedb.reducer(
   'add_tracked_realm',
   {
@@ -361,11 +381,10 @@ export const seed_tracked_realms = spacetimedb.reducer(
   'seed_tracked_realms',
   {},
   (ctx) => {
+    // Devnet test realm (created via scripts/setup-devnet-realm.ts)
+    // For mainnet, replace with real realm addresses (Marinade, Mango, Jito, etc.)
     const defaults = [
-      { address: 'By2sVGZXwfQq6BaEcQfdrLSHg8jyVMNaxFz4dVBLgdR1', name: 'Marinade' },
-      { address: 'DPiH3H3c7t47BMxqTxLsuPQpEC6Kne8GA9VXbxpnZxFE', name: 'Mango' },
-      { address: '759qyfKDMMuo9v36tW7fbGanL63mZFPNbhU7o3Y8HYWk', name: 'Jito' },
-      { address: 'GovHgfDPyQ1GwjkhgEN4jbGABJiMSmmaRz4myHFJKhRX', name: 'PsyFi' },
+      { address: 'j3JUuwBzzh1VHcE8gskSXbjjemK4kxZjvnvWfBLrRdk', name: 'ClawdDAO-Test' },
     ];
 
     for (const realm of defaults) {
