@@ -6,7 +6,7 @@ function getClient() {
   if (!_client) {
     _client = new OpenAI({
       apiKey: process.env.ZAI_API_KEY || "placeholder",
-      baseURL: "https://api.z.ai/api/paas/v4/",
+      baseURL: process.env.ZAI_BASE_URL || "https://open.bigmodel.cn/api/coding/paas/v4/",
     });
   }
   return _client;
