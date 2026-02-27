@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0D1117"/>
+      <stop offset="100%" stop-color="#161B22"/>
+    </linearGradient>
+    <linearGradient id="greenGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="720" fill="url(#bgGrad)"/>
+
+  <!-- Title -->
+  <text x="600" y="48" text-anchor="middle" fill="#F0F6FC" font-size="32" font-weight="700" letter-spacing="1">ClawdDAO</text>
+  <text x="600" y="72" text-anchor="middle" fill="#8B949E" font-size="13" letter-spacing="3" font-weight="500">SYSTEM ARCHITECTURE</text>
+
+  <!-- ═══════════ USER LAYER ═══════════ -->
+  <rect x="40" y="95" width="1120" height="155" rx="12" fill="none" stroke="#10B981" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.4"/>
+  <text x="60" y="115" fill="#10B981" font-size="10" font-weight="700" letter-spacing="2">USER LAYER</text>
+
+  <!-- Next.js Box -->
+  <rect x="70" y="125" width="320" height="105" rx="10" fill="#10B98115" stroke="#10B981" stroke-width="1.2"/>
+  <text x="230" y="153" text-anchor="middle" fill="#F0F6FC" font-size="15" font-weight="700">Next.js 16 + React 19</text>
+  <text x="230" y="173" text-anchor="middle" fill="#8B949E" font-size="12">Dashboard &#xB7; Agent Wizard &#xB7; Social Feed</text>
+  <text x="230" y="193" text-anchor="middle" fill="#8B949E" font-size="12">Tailwind v4 + shadcn/ui</text>
+  <text x="230" y="215" text-anchor="middle" fill="#6EE7B7" font-size="11" font-weight="600">localhost:3000</text>
+
+  <!-- Privy Auth Box -->
+  <rect x="440" y="125" width="280" height="105" rx="10" fill="#10B98115" stroke="#10B981" stroke-width="1.2"/>
+  <text x="580" y="153" text-anchor="middle" fill="#F0F6FC" font-size="15" font-weight="700">Privy Auth</text>
+  <text x="580" y="173" text-anchor="middle" fill="#8B949E" font-size="12">Google / Twitter / Wallet Login</text>
+  <text x="580" y="193" text-anchor="middle" fill="#8B949E" font-size="12">JWT verification on API routes</text>
+  <text x="580" y="215" text-anchor="middle" fill="#6EE7B7" font-size="11" font-weight="600">Browser SDK</text>
+
+  <!-- SpacetimeDB WS Box -->
+  <rect x="770" y="125" width="360" height="105" rx="10" fill="#10B98115" stroke="#10B981" stroke-width="1.2"/>
+  <text x="950" y="153" text-anchor="middle" fill="#F0F6FC" font-size="15" font-weight="700">SpacetimeDB WebSocket</text>
+  <text x="950" y="173" text-anchor="middle" fill="#8B949E" font-size="12">Real-time subscriptions for agents, votes</text>
+  <text x="950" y="193" text-anchor="middle" fill="#8B949E" font-size="12">Auto-sync UI on every DB change</text>
+  <text x="950" y="215" text-anchor="middle" fill="#6EE7B7" font-size="11" font-weight="600">ws://localhost:3000</text>
+
+  <!-- ═══════════ Arrows: User → API ═══════════ -->
+  <line x1="230" y1="230" x2="230" y2="275" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="580" y1="230" x2="580" y2="275" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <line x1="950" y1="230" x2="950" y2="275" stroke="#3B82F6" stroke-width="1.5" marker-end="url(#arrowBlue)"/>
+  <defs>
+    <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#3B82F6"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#8B5CF6"/>
+    </marker>
+  </defs>
+
+  <!-- ═══════════ API + WORKER LAYER ═══════════ -->
+  <rect x="40" y="270" width="1120" height="155" rx="12" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.4"/>
+  <text x="60" y="290" fill="#3B82F6" font-size="10" font-weight="700" letter-spacing="2">API + WORKER LAYER</text>
+
+  <!-- API Routes Box -->
+  <rect x="70" y="300" width="520" height="105" rx="10" fill="#3B82F615" stroke="#3B82F6" stroke-width="1.2"/>
+  <text x="330" y="328" text-anchor="middle" fill="#F0F6FC" font-size="15" font-weight="700">Next.js API Routes</text>
+  <text x="140" y="352" fill="#93C5FD" font-size="11" font-weight="600">/api/governance/*</text>
+  <text x="310" y="352" fill="#8B949E" font-size="11">Helius RPC → governance-idl-sdk</text>
+  <text x="140" y="370" fill="#93C5FD" font-size="11" font-weight="600">/api/agents</text>
+  <text x="310" y="370" fill="#8B949E" font-size="11">SpacetimeDB + Privy wallet creation</text>
+  <text x="140" y="388" fill="#93C5FD" font-size="11" font-weight="600">/api/ai/*</text>
+  <text x="310" y="388" fill="#8B949E" font-size="11">Z.AI GLM-5 analysis &#xB7; chat &#xB7; config</text>
+
+  <!-- Arrow between API and Worker -->
+  <line x1="600" y1="352" x2="640" y2="352" stroke="#60A5FA" stroke-width="1.2" stroke-dasharray="4 2"/>
+  <text x="620" y="342" text-anchor="middle" fill="#60A5FA" font-size="9">shared libs</text>
+
+  <!-- Worker Box -->
+  <rect x="650" y="300" width="480" height="105" rx="10" fill="#3B82F615" stroke="#3B82F6" stroke-width="1.2"/>
+  <text x="890" y="328" text-anchor="middle" fill="#F0F6FC" font-size="15" font-weight="700">Autonomous Worker</text>
+  <text x="890" y="352" text-anchor="middle" fill="#8B949E" font-size="12">Express HTTP server + background voting loop</text>
+  <text x="890" y="372" text-anchor="middle" fill="#93C5FD" font-size="12" font-weight="600">Discover → Analyze → Vote → Post</text>
+  <text x="890" y="392" text-anchor="middle" fill="#8B949E" font-size="11">Idempotent &#xB7; Rate-limited &#xB7; 5 tx/hr/agent</text>
+
+  <!-- ═══════════ Arrows: API → On-Chain ═══════════ -->
+  <line x1="330" y1="405" x2="330" y2="455" stroke="#8B5CF6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+  <line x1="890" y1="405" x2="890" y2="455" stroke="#8B5CF6" stroke-width="1.5" marker-end="url(#arrowPurple)"/>
+
+  <!-- ═══════════ ON-CHAIN + DATA LAYER ═══════════ -->
+  <rect x="40" y="450" width="1120" height="245" rx="12" fill="none" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.4"/>
+  <text x="60" y="470" fill="#8B5CF6" font-size="10" font-weight="700" letter-spacing="2">ON-CHAIN + DATA LAYER</text>
+
+  <!-- SPL Governance -->
+  <rect x="70" y="485" width="200" height="90" rx="10" fill="#8B5CF615" stroke="#8B5CF6" stroke-width="1.2"/>
+  <text x="170" y="513" text-anchor="middle" fill="#F0F6FC" font-size="14" font-weight="700">SPL Governance</text>
+  <text x="170" y="533" text-anchor="middle" fill="#C4B5FD" font-size="11">(Realms Program)</text>
+  <text x="170" y="553" text-anchor="middle" fill="#8B949E" font-size="10">On-chain proposals + votes</text>
+
+  <!-- Tapestry -->
+  <rect x="290" y="485" width="200" height="90" rx="10" fill="#8B5CF615" stroke="#8B5CF6" stroke-width="1.2"/>
+  <text x="390" y="513" text-anchor="middle" fill="#F0F6FC" font-size="14" font-weight="700">Tapestry</text>
+  <text x="390" y="533" text-anchor="middle" fill="#C4B5FD" font-size="11">Social Graph</text>
+  <text x="390" y="553" text-anchor="middle" fill="#8B949E" font-size="10">Vote reasoning + likes</text>
+
+  <!-- SpacetimeDB -->
+  <rect x="510" y="485" width="200" height="90" rx="10" fill="#8B5CF615" stroke="#8B5CF6" stroke-width="1.2"/>
+  <text x="610" y="513" text-anchor="middle" fill="#F0F6FC" font-size="14" font-weight="700">SpacetimeDB</text>
+  <text x="610" y="533" text-anchor="middle" fill="#C4B5FD" font-size="11">Real-time Database</text>
+  <text x="610" y="553" text-anchor="middle" fill="#8B949E" font-size="10">Agents, votes, delegations</text>
+
+  <!-- Privy Wallets -->
+  <rect x="730" y="485" width="200" height="90" rx="10" fill="#8B5CF615" stroke="#8B5CF6" stroke-width="1.2"/>
+  <text x="830" y="513" text-anchor="middle" fill="#F0F6FC" font-size="14" font-weight="700">Privy Wallets</text>
+  <text x="830" y="533" text-anchor="middle" fill="#C4B5FD" font-size="11">Agentic Wallets</text>
+  <text x="830" y="553" text-anchor="middle" fill="#8B949E" font-size="10">Server-side tx signing</text>
+
+  <!-- Z.AI + Helius -->
+  <rect x="950" y="485" width="180" height="90" rx="10" fill="#8B5CF615" stroke="#8B5CF6" stroke-width="1.2"/>
+  <text x="1040" y="513" text-anchor="middle" fill="#F0F6FC" font-size="14" font-weight="700">Z.AI GLM-5</text>
+  <text x="1040" y="533" text-anchor="middle" fill="#C4B5FD" font-size="11">AI Analysis Engine</text>
+  <text x="1040" y="553" text-anchor="middle" fill="#8B949E" font-size="10">Risk scores + reasoning</text>
+
+  <!-- Helius -->
+  <rect x="70" y="595" width="200" height="75" rx="10" fill="#8B5CF610" stroke="#8B5CF6" stroke-width="0.8"/>
+  <text x="170" y="623" text-anchor="middle" fill="#F0F6FC" font-size="13" font-weight="700">Helius RPC</text>
+  <text x="170" y="643" text-anchor="middle" fill="#8B949E" font-size="10">Solana RPC provider (devnet)</text>
+
+  <!-- Arrow Helius → SPL Gov -->
+  <line x1="170" y1="595" x2="170" y2="575" stroke="#8B5CF6" stroke-width="1" marker-end="url(#arrowPurple)"/>
+
+  <!-- Data flow labels -->
+  <rect x="290" y="600" width="340" height="65" rx="8" fill="#21262D" stroke="#30363D" stroke-width="1"/>
+  <text x="460" y="622" text-anchor="middle" fill="#F0F6FC" font-size="12" font-weight="600">Data Flow</text>
+  <text x="460" y="642" text-anchor="middle" fill="#8B949E" font-size="10">Browser ←WebSocket→ SpacetimeDB ←HTTP→ Worker</text>
+  <text x="460" y="656" text-anchor="middle" fill="#8B949E" font-size="10">Worker → Helius RPC → SPL Governance → Tapestry</text>
+
+  <!-- Solana network badge -->
+  <rect x="950" y="610" width="180" height="45" rx="8" fill="#21262D" stroke="#9945FF" stroke-width="1"/>
+  <text x="1040" y="632" text-anchor="middle" fill="#9945FF" font-size="12" font-weight="700">Solana Devnet</text>
+  <text x="1040" y="647" text-anchor="middle" fill="#8B949E" font-size="10">All on-chain operations</text>
+</svg>
