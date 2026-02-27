@@ -12,12 +12,8 @@ import type { Agent } from '@shared/types/governance';
 
 function AgentsSkeleton() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-9 w-36" />
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <Card key={i}>
             <CardContent className="p-5 space-y-4">
@@ -46,7 +42,6 @@ export default function AgentsPage() {
 
   if (!isReady) return <AgentsSkeleton />;
 
-  // Map SpacetimeDB rows to Agent type used by AgentCard
   const agents: Agent[] = rows.map((r) => ({
     id: r.id.toString(),
     owner: r.ownerWallet,
@@ -61,19 +56,9 @@ export default function AgentsPage() {
   }));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">AI Agents</h1>
-        <Link href="/agents/create">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Agent
-          </Button>
-        </Link>
-      </div>
-
+    <div className="mx-auto w-full max-w-4xl space-y-4">
       {agents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {agents.map((agent) => (
             <AgentCard key={agent.id} agent={agent} />
           ))}

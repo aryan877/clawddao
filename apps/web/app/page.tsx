@@ -10,7 +10,7 @@ export default function Home() {
 
   const handleGetStarted = () => {
     if (authenticated) {
-      router.push('/dashboard');
+      router.push('/feed');
     } else {
       login();
     }
@@ -28,7 +28,7 @@ export default function Home() {
           onClick={handleGetStarted}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
         >
-          {authenticated ? 'Dashboard' : 'Connect Wallet'}
+          {authenticated ? 'Feed' : 'Connect Wallet'}
         </button>
       </nav>
 

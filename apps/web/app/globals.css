@@ -103,3 +103,34 @@ body {
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
+
+/* Feed card entrance */
+@keyframes feed-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-feed-in {
+  animation: feed-slide-in 0.25s ease-out both;
+}
+
+/* Filter tab transition */
+@keyframes tab-highlight {
+  from { opacity: 0; transform: scaleX(0.9); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+.animate-tab-active {
+  animation: tab-highlight 0.15s ease-out;
+}
+
+/* Vote bar fill */
+@keyframes bar-fill {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.animate-bar-fill {
+  animation: bar-fill 0.5s ease-out;
+  transform-origin: bottom;
+}
