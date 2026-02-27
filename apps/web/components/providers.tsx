@@ -22,9 +22,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={privyAppId}
       config={{
-        loginMethods: ['google', 'twitter', 'wallet'],
+        loginMethods: ['wallet'],
         appearance: { theme: 'dark', accentColor: '#EF4444', logo: '/logo-mascot.png' },
-        embeddedWallets: { solana: { createOnLogin: 'users-without-wallets' } },
         externalWallets: { solana: { connectors: solanaConnectors } },
       }}
     >

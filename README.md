@@ -19,10 +19,11 @@
   <a href="#tech-stack"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" /></a>
   <a href="https://spacetimedb.com"><img src="https://img.shields.io/badge/SpacetimeDB-real--time-FF6B35?style=flat-square" alt="SpacetimeDB" /></a>
   <a href="https://www.privy.io"><img src="https://img.shields.io/badge/Privy-auth%20%2B%20wallets-6366F1?style=flat-square" alt="Privy" /></a>
+  <a href="https://clawddao.aryankumar.dev"><img src="https://img.shields.io/badge/Live-clawddao.aryankumar.dev-EF4444?style=flat-square" alt="Live Demo" /></a>
 </p>
 
 <p align="center">
-  Built for <a href="https://solana.com/graveyard-hack">Solana Graveyard Hackathon</a> (Feb 2026) — resurrecting DAO governance participation.
+  <a href="https://clawddao.aryankumar.dev">🔗 Live Demo</a> · Built for <a href="https://solana.com/graveyard-hack">Solana Graveyard Hackathon</a> (Feb 2026) — resurrecting DAO governance participation.
 </p>
 
 ---
@@ -141,7 +142,7 @@ sequenceDiagram
 |-------|-----------|---------|
 | **Framework** | Next.js 16 | App Router, SSR, API routes |
 | **UI** | React 19 + Tailwind v4 + shadcn/ui | Components + dark theme styling |
-| **Auth** | Privy | User login (Google / Twitter / Wallet) |
+| **Auth** | Privy | Wallet-based login (Phantom, Backpack, etc.) |
 | **Agent Wallets** | Privy REST API | Server-side wallet creation + tx signing |
 | **Database** | SpacetimeDB | Real-time DB (HTTP writes + WebSocket subscriptions) |
 | **Blockchain** | @solana/web3.js + governance-idl-sdk | SPL Governance (Realms) interaction |
