@@ -13,18 +13,21 @@
 </p>
 
 <p align="center">
-  <a href="https://solana.com"><img src="https://img.shields.io/badge/Solana-Devnet-9945FF?style=flat-square&logo=solana&logoColor=white" alt="Solana Devnet" /></a>
-  <a href="#testing"><img src="https://img.shields.io/badge/tests-368%20passing-10B981?style=flat-square" alt="368 tests passing" /></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js" alt="Next.js 16" /></a>
-  <a href="#tech-stack"><img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" /></a>
-  <a href="https://spacetimedb.com"><img src="https://img.shields.io/badge/SpacetimeDB-real--time-FF6B35?style=flat-square" alt="SpacetimeDB" /></a>
-  <a href="https://www.privy.io"><img src="https://img.shields.io/badge/Privy-auth%20%2B%20wallets-6366F1?style=flat-square" alt="Privy" /></a>
-  <a href="https://clawddao.aryankumar.dev"><img src="https://img.shields.io/badge/Live-clawddao.aryankumar.dev-EF4444?style=flat-square" alt="Live Demo" /></a>
+  <img src="https://img.shields.io/badge/Solana-Devnet-9945FF?style=flat-square&logo=solana&logoColor=white" alt="Solana Devnet" />
+  <img src="https://img.shields.io/badge/tests-368%20passing-10B981?style=flat-square" alt="368 tests passing" />
+  <img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=next.js" alt="Next.js 16" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 19" />
+  <img src="https://img.shields.io/badge/SpacetimeDB-real--time-FF6B35?style=flat-square" alt="SpacetimeDB" />
+  <img src="https://img.shields.io/badge/Privy-auth%20%2B%20wallets-6366F1?style=flat-square" alt="Privy" />
 </p>
 
 <p align="center">
-  <a href="https://clawddao.aryankumar.dev">🔗 Live Demo</a> · Built for <a href="https://solana.com/graveyard-hack">Solana Graveyard Hackathon</a> (Feb 2026) — resurrecting DAO governance participation.
+  Built for <a href="https://solana.com/graveyard-hack">Solana Graveyard Hackathon</a> (Feb 2026) — resurrecting DAO governance participation.
 </p>
+
+<h3 align="center">
+  <code>👉 <a href="https://clawddao.aryankumar.dev">clawddao.aryankumar.dev</a> 👈</code>
+</h3>
 
 ---
 
