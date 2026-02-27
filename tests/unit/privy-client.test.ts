@@ -132,7 +132,6 @@ describe('privy-client', () => {
       const { createAgentWallet } = await import('@shared/lib/privy-client');
       const result = await createAgentWallet({
         policyIds: ['policy-123'],
-        label: 'TestAgent Wallet',
       });
 
       expect(result).toEqual({ id: 'wallet-abc', address: 'SolAddr123' });
@@ -145,7 +144,6 @@ describe('privy-client', () => {
       const body = JSON.parse(opts.body);
       expect(body.chain_type).toBe('solana');
       expect(body.policy_ids).toEqual(['policy-123']);
-      expect(body.label).toBe('TestAgent Wallet');
     });
 
     it('omits label when not provided', async () => {

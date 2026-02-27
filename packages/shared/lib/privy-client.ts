@@ -84,7 +84,6 @@ export async function createPolicy(options?: {
   }
 
   const maxLamports = Math.floor((options?.maxSolPerTx || 0.1) * 1e9);
-  const chainId = options?.chainId || SOLANA_CHAIN_CONFIG.chainId;
 
   const policyPayload = {
     version: '1.0',
@@ -93,11 +92,11 @@ export async function createPolicy(options?: {
     rules: [
       {
         name: `Max ${options?.maxSolPerTx || 0.1} SOL per transaction`,
-        method: 'solana_sendTransaction',
+        method: 'signAndSendTransaction',
         conditions: [
           {
-            field_source: 'solana_transaction',
-            field: 'lamports',
+            field_source: 'solana_system_program_instruction',
+            field: 'Transfer.lamports',
             operator: 'lte',
             value: maxLamports.toString(),
           },
@@ -105,14 +104,14 @@ export async function createPolicy(options?: {
         action: 'ALLOW',
       },
       {
-        name: `Chain ${chainId === 101 ? 'mainnet' : 'devnet'} only`,
-        method: 'solana_sendTransaction',
+        name: `Allow signTransaction with transfer limit`,
+        method: 'signTransaction',
         conditions: [
           {
-            field_source: 'solana_transaction',
-            field: 'chain_id',
-            operator: 'eq',
-            value: chainId.toString(),
+            field_source: 'solana_system_program_instruction',
+            field: 'Transfer.lamports',
+            operator: 'lte',
+            value: maxLamports.toString(),
           },
         ],
         action: 'ALLOW',
@@ -159,7 +158,6 @@ export async function createAgentWallet(options: {
     body: JSON.stringify({
       chain_type: 'solana',
       policy_ids: options.policyIds,
-      ...(options.label && { label: options.label }),
     }),
   });
 
