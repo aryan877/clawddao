@@ -118,7 +118,7 @@ describe('GovernanceAnalysisSchema', () => {
     expect(() => GovernanceAnalysisSchema.parse(rest)).toThrow();
   });
 
-  it('rejects when risk_assessment.treasury_impact is missing', () => {
+  it('defaults treasury_impact when missing from risk_assessment', () => {
     const analysis = {
       ...validAnalysis,
       risk_assessment: {
@@ -127,7 +127,8 @@ describe('GovernanceAnalysisSchema', () => {
         overall_risk_score: 10,
       },
     };
-    expect(() => GovernanceAnalysisSchema.parse(analysis)).toThrow();
+    const result = GovernanceAnalysisSchema.parse(analysis);
+    expect(result.risk_assessment.treasury_impact).toBe('Unknown');
   });
 
   it('rejects when recommendation.vote is missing', () => {

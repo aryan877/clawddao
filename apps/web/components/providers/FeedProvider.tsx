@@ -7,6 +7,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from 'react';
 import type { Proposal } from '@shared/types/governance';
 import type {
@@ -45,8 +46,11 @@ function mapProposal(
 interface FeedContextValue {
   // Data
   items: FeedItem[];
+  proposalItems: FeedItem[];
+  reasoningItems: FeedItem[];
   realms: RealmResponse[];
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | null;
 
   // Filter / sort state
@@ -81,16 +85,25 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
   const [realms, setRealms] = useState<RealmResponse[]>([]);
   const [posts, setPosts] = useState<GovernanceFeedPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [sort, setSort] = useState<FeedSort>('hot');
   const [activeRealm, setActiveRealm] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const hasLoadedOnce = useRef(false);
+
+  const fetchData = useCallback(async (opts?: { background?: boolean }) => {
+    const background = opts?.background ?? false;
+
     try {
-      setIsLoading(true);
-      setError(null);
+      if (background) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+        setError(null);
+      }
 
       const [realmsRes, tapestryRes] = await Promise.all([
         fetch('/api/governance/realms'),
@@ -105,44 +118,84 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       let tapestryData: GovernanceFeedPost[] = [];
       if (tapestryRes.ok) {
         const raw = await tapestryRes.json();
-        if (Array.isArray(raw)) {
-          tapestryData = raw.map(
-            (item: Record<string, unknown>, idx: number) => ({
-              id: (item.id as string) || String(idx),
-              agentName: (item.agentName as string) || 'AI Agent',
+        // Tapestry contentsList returns { contents: [...], page, pageSize, totalCount }
+        // Each item: { authorProfile, content: { vote, reasoning, ... }, socialCounts }
+        const items: unknown[] = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.contents)
+            ? raw.contents
+            : [];
+
+        tapestryData = items.map(
+          (entry: unknown, idx: number) => {
+            const item = entry as Record<string, unknown>;
+            const content = (item.content ?? item) as Record<string, unknown>;
+            const author = item.authorProfile as Record<string, unknown> | undefined;
+            const social = item.socialCounts as Record<string, unknown> | undefined;
+
+            const voteStr = ((content.vote as string) || 'FOR').toUpperCase();
+
+            return {
+              id: (content.id as string) || String(idx),
+              tapestryContentId: (item.id as string) || (content.id as string) || undefined,
+              agentName:
+                (content.agentName as string) ||
+                (author?.username as string) ||
+                'AI Agent',
               vote: {
-                vote: ((item.vote as string) || 'FOR') as
-                  | 'FOR'
-                  | 'AGAINST'
-                  | 'ABSTAIN',
-                reasoning: (item.reasoning as string) || '',
-                confidence: (item.confidence as number) || 0.5,
+                vote: voteStr as 'FOR' | 'AGAINST' | 'ABSTAIN',
+                reasoning: (content.reasoning as string) || '',
+                confidence: Number(content.confidence) || 0.5,
                 proposalTitle:
-                  (item.proposalTitle as string) || 'Untitled Proposal',
-                createdAt: item.createdAt
-                  ? new Date(item.createdAt as string)
-                  : new Date(),
+                  (content.proposalTitle as string) ||
+                  (content.proposalAddress
+                    ? `Proposal ${(content.proposalAddress as string).slice(0, 8)}...`
+                    : 'Untitled Proposal'),
+                proposalAddress: (content.proposalAddress as string) || undefined,
+                createdAt: content.created_at
+                  ? new Date(content.created_at as number)
+                  : content.createdAt
+                    ? new Date(content.createdAt as string)
+                    : new Date(),
               },
-              likes: (item.likes as number) || 0,
-              comments: (item.comments as number) || 0,
-              type: ((item.type as string) || 'vote') as
+              likes: (social?.likeCount as number) || (social?.likes as number) || 0,
+              comments: (social?.commentCount as number) || (social?.comments as number) || 0,
+              type: ((content.type as string) === 'vote_reasoning' ? 'vote' : (content.type as string) || 'vote') as
                 | 'vote'
                 | 'analysis'
                 | 'delegation',
-            }),
-          );
-        }
+            };
+          },
+        );
       }
       setPosts(tapestryData);
+      hasLoadedOnce.current = true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feed');
+      // Background refresh: don't replace existing data on error
+      if (!background) {
+        setError(err instanceof Error ? err.message : 'Failed to load feed');
+      }
     } finally {
-      setIsLoading(false);
+      if (background) {
+        setIsRefreshing(false);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Auto-refresh every 60s (background mode)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (hasLoadedOnce.current) {
+        fetchData({ background: true });
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   // --- Merge proposals + reasoning into unified feed ---
@@ -182,18 +235,37 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
     return sortFeedItems(filtered, sort);
   }, [allItems, activeRealm, filter, sort]);
 
+  // --- Separate lists for proposals and reasoning ---
+
+  const proposalItems = useMemo(
+    () => sortFeedItems(allItems.filter((i) => i.kind === 'proposal'), 'hot'),
+    [allItems],
+  );
+
+  const reasoningItems = useMemo(
+    () => sortFeedItems(allItems.filter((i) => i.kind === 'reasoning'), sort),
+    [allItems, sort],
+  );
+
   // --- Derived counts ---
 
-  const totalProposals = allItems.filter((i) => i.kind === 'proposal').length;
-  const activeProposals = allItems.filter(
+  const totalProposals = proposalItems.length;
+  const activeProposals = proposalItems.filter(
     (i) => i.kind === 'proposal' && i.proposal.status === 'voting',
   ).length;
+
+  const refresh = useCallback(() => {
+    fetchData({ background: hasLoadedOnce.current });
+  }, [fetchData]);
 
   const value = useMemo<FeedContextValue>(
     () => ({
       items,
+      proposalItems,
+      reasoningItems,
       realms,
       isLoading,
+      isRefreshing,
       error,
       filter,
       sort,
@@ -203,19 +275,22 @@ export function FeedProvider({ children }: { children: React.ReactNode }) {
       setActiveRealm,
       totalProposals,
       activeProposals,
-      refresh: fetchData,
+      refresh,
     }),
     [
       items,
+      proposalItems,
+      reasoningItems,
       realms,
       isLoading,
+      isRefreshing,
       error,
       filter,
       sort,
       activeRealm,
       totalProposals,
       activeProposals,
-      fetchData,
+      refresh,
     ],
   );
 

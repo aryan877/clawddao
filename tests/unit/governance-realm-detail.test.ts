@@ -100,7 +100,7 @@ describe('GET /api/governance/realms/[address]', () => {
       }),
     );
     expect(mockFetchRealm).toHaveBeenCalledWith(VALID_ADDRESS);
-    expect(mockFetchProposalsForRealm).toHaveBeenCalledWith(VALID_ADDRESS);
+    expect(mockFetchProposalsForRealm).toHaveBeenCalledWith(VALID_ADDRESS, mockGovernances);
   });
 
   it('returns 500 when fetchRealm throws', async () => {

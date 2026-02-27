@@ -9,12 +9,65 @@ import type {
 } from 'governance-idl-sdk';
 import { SOLANA_CHAIN_CONFIG } from './constants';
 
+// ---------------------------------------------------------------------------
+// Connection + client singletons (avoid TCP overhead per call)
+// ---------------------------------------------------------------------------
+
+let _connection: Connection | null = null;
+let _governanceClient: SplGovernance | null = null;
+
 export function getConnection(): Connection {
-  return new Connection(SOLANA_CHAIN_CONFIG.rpcUrl, 'confirmed');
+  if (!_connection) {
+    _connection = new Connection(SOLANA_CHAIN_CONFIG.rpcUrl, 'confirmed');
+  }
+  return _connection;
 }
 
 export function getGovernanceClient(): SplGovernance {
-  return new SplGovernance(getConnection());
+  if (!_governanceClient) {
+    _governanceClient = new SplGovernance(getConnection());
+  }
+  return _governanceClient;
+}
+
+/** Reset singletons — for test isolation only. */
+export function _resetGovernanceSingletons(): void {
+  _connection = null;
+  _governanceClient = null;
+}
+
+// ---------------------------------------------------------------------------
+// TTL cache — zero-dependency Map<string, {value, expiresAt}>
+// ---------------------------------------------------------------------------
+
+const TTL_REALMS_MS = 5 * 60 * 1000;     // 5 min
+const TTL_PROPOSALS_MS = 60 * 1000;       // 60s
+const TTL_VOTE_RECORDS_MS = 30 * 1000;    // 30s
+
+interface CacheEntry<T> {
+  value: T;
+  expiresAt: number;
+}
+
+const cache = new Map<string, CacheEntry<unknown>>();
+
+function getCached<T>(key: string): T | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.value as T;
+}
+
+function setCached<T>(key: string, value: T, ttlMs: number): void {
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+/** Clear the governance cache — for tests and manual refresh. */
+export function clearGovernanceCache(): void {
+  cache.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -46,7 +99,9 @@ interface ProposalV2Fields {
   abstainVoteWeight?: BNLike | null;
   draftAt?: BNLike | null;
   startVotingAt?: BNLike | null;
+  votingAt?: BNLike | null;
   votingCompletedAt?: BNLike | null;
+  maxVotingTime?: BNLike | null;
   governance?: PublicKeyLike | null;
   governingTokenMint?: PublicKeyLike | null;
   tokenOwnerRecord?: PublicKeyLike | null;
@@ -111,6 +166,10 @@ function pubkeyToString(val: PublicKeyLike | null | undefined): string {
 // ---------------------------------------------------------------------------
 
 export async function fetchRealm(realmAddress: string) {
+  const cacheKey = `realm:${realmAddress}`;
+  const cached = getCached<{ realm: RealmV2; governances: GovernanceAccount[] }>(cacheKey);
+  if (cached) return cached;
+
   const gov = getGovernanceClient();
   const realmPubkey = new PublicKey(realmAddress);
 
@@ -119,14 +178,26 @@ export async function fetchRealm(realmAddress: string) {
     gov.getGovernanceAccountsByRealm(realmPubkey),
   ]);
 
-  return { realm, governances };
+  const result = { realm, governances };
+  setCached(cacheKey, result, TTL_REALMS_MS);
+  return result;
 }
 
-export async function fetchProposalsForRealm(realmAddress: string): Promise<ProposalV2[]> {
-  const gov = getGovernanceClient();
-  const realmPubkey = new PublicKey(realmAddress);
-  const governances = await gov.getGovernanceAccountsByRealm(realmPubkey);
+export async function fetchProposalsForRealm(
+  realmAddress: string,
+  preloadedGovernances?: GovernanceAccount[],
+): Promise<ProposalV2[]> {
+  const cacheKey = `proposals:${realmAddress}`;
+  const cached = getCached<ProposalV2[]>(cacheKey);
+  if (cached) return cached;
 
+  const gov = getGovernanceClient();
+  const governances =
+    preloadedGovernances ??
+    (await gov.getGovernanceAccountsByRealm(new PublicKey(realmAddress)));
+
+  // NOTE: Do NOT pass onlyActive to the SDK — its RPC-level filter is unreliable
+  // and returns 0 results for devnet proposals. Filter by status client-side instead.
   const proposalArrays = await Promise.all(
     governances.map((g) =>
       gov.getProposalsforGovernance(g.publicKey).catch((err) => {
@@ -139,7 +210,9 @@ export async function fetchProposalsForRealm(realmAddress: string): Promise<Prop
     ),
   );
 
-  return proposalArrays.flat();
+  const result = proposalArrays.flat();
+  setCached(cacheKey, result, TTL_PROPOSALS_MS);
+  return result;
 }
 
 export async function fetchProposal(proposalAddress: string): Promise<ProposalV2> {
@@ -148,8 +221,14 @@ export async function fetchProposal(proposalAddress: string): Promise<ProposalV2
 }
 
 export async function fetchVoteRecords(proposalAddress: string): Promise<VoteRecord[]> {
+  const cacheKey = `voteRecords:${proposalAddress}`;
+  const cached = getCached<VoteRecord[]>(cacheKey);
+  if (cached) return cached;
+
   const gov = getGovernanceClient();
-  return gov.getVoteRecordsForProposal(new PublicKey(proposalAddress));
+  const result = await gov.getVoteRecordsForProposal(new PublicKey(proposalAddress));
+  setCached(cacheKey, result, TTL_VOTE_RECORDS_MS);
+  return result;
 }
 
 export async function fetchRealmMembers(realmAddress: string): Promise<TokenOwnerRecord[]> {
@@ -175,7 +254,7 @@ export function serializeRealm(r: RealmV2) {
   };
 }
 
-export function serializeProposal(p: ProposalV2) {
+export function serializeProposal(p: ProposalV2, votingBaseTimeFallback?: number) {
   const fields = p as unknown as ProposalV2Fields;
   const state = getProposalState(fields.state);
 
@@ -185,7 +264,13 @@ export function serializeProposal(p: ProposalV2) {
 
   const draftTs = bnToNumber(fields.draftAt);
   const startTs = bnToNumber(fields.startVotingAt);
+  const votingAtTs = bnToNumber(fields.votingAt);
   const completedTs = bnToNumber(fields.votingCompletedAt);
+  const maxVotingTimeSec = bnToNumber(fields.maxVotingTime) ?? votingBaseTimeFallback ?? null;
+
+  // Compute voting end time: votingAt + votingDuration (both in seconds)
+  const votingEndTs =
+    votingAtTs && maxVotingTimeSec ? votingAtTs + maxVotingTimeSec : null;
 
   return {
     address: fields.publicKey.toBase58(),
@@ -200,7 +285,9 @@ export function serializeProposal(p: ProposalV2) {
     abstainVotes,
     draftAt: draftTs ? new Date(draftTs * 1000).toISOString() : null,
     startVotingAt: startTs ? new Date(startTs * 1000).toISOString() : null,
+    votingAt: votingAtTs ? new Date(votingAtTs * 1000).toISOString() : null,
     votingCompletedAt: completedTs ? new Date(completedTs * 1000).toISOString() : null,
+    votingEndAt: votingEndTs ? new Date(votingEndTs * 1000).toISOString() : null,
   };
 }
 

@@ -1,12 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Bot, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AgentCard } from '@/components/agent/AgentCard';
-import { useTable } from 'spacetimedb/react';
+import { useTable, useSpacetimeDB } from 'spacetimedb/react';
 import { tables } from '@/module_bindings';
 import type { Agent } from '@shared/types/governance';
 
@@ -39,8 +40,22 @@ function AgentsSkeleton() {
 
 export default function AgentsPage() {
   const [rows, isReady] = useTable(tables.agents);
+  const { connectionError } = useSpacetimeDB();
+  const [timedOut, setTimedOut] = useState(false);
 
-  if (!isReady) return <AgentsSkeleton />;
+  useEffect(() => {
+    if (isReady) return;
+    // Short timeout — if WebSocket hasn't connected or subscription hasn't
+    // resolved, fall through to the empty state rather than blocking the UI.
+    const timer = setTimeout(() => setTimedOut(true), 1500);
+    return () => clearTimeout(timer);
+  }, [isReady]);
+
+  // Show skeleton only briefly while waiting for WS subscription.
+  // Bail early if connection errored or timed out.
+  if (!isReady && !timedOut && !connectionError) {
+    return <AgentsSkeleton />;
+  }
 
   const agents: Agent[] = rows.map((r) => ({
     id: r.id.toString(),

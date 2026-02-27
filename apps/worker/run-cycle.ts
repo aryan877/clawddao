@@ -1,4 +1,5 @@
 import {
+  fetchRealm,
   fetchProposalsForRealm,
   serializeProposal,
 } from '@shared/lib/governance';
@@ -18,6 +19,8 @@ import {
 export interface WorkerCycleOptions {
   dryRun: boolean;
   maxConcurrency: number;
+  /** Delay in ms between sequential AI calls. Defaults to 3000. Set to 0 in tests. */
+  throttleDelayMs?: number;
 }
 
 export interface WorkerCycleSummary {
@@ -38,12 +41,21 @@ interface AgentProposalPair {
 }
 
 function readMaxConcurrency(value: number): number {
-  if (!Number.isFinite(value) || value < 1) return 4;
+  if (!Number.isFinite(value) || value < 1) return 1;
   return Math.floor(value);
 }
 
+// Default throttle delay between sequential AI analysis calls (Z.AI rate limit)
+const DEFAULT_THROTTLE_DELAY_MS = 3_000;
+
 function isVotingStatus(status: string): boolean {
   return status.toLowerCase() === 'voting';
+}
+
+/** Check if a proposal's voting window is still open (not expired). */
+function isVotingTimeActive(proposal: { votingEndAt?: string | null }): boolean {
+  if (!proposal.votingEndAt) return true; // Can't determine — assume active
+  return new Date(proposal.votingEndAt).getTime() > Date.now();
 }
 
 function normalizeProposalDescription(linkOrDescription: string): string {
@@ -66,15 +78,21 @@ async function collectActiveProposals(): Promise<GovernanceProposalContext[]> {
   const realmResults = await Promise.all(
     trackedRealms.map(async (realm) => {
       try {
-        const proposals = await fetchProposalsForRealm(realm.address);
+        const { governances } = await fetchRealm(realm.address);
+        const proposals = await fetchProposalsForRealm(realm.address, governances);
+        // Extract votingBaseTime from governance config as fallback
+        // (proposals may not have maxVotingTime set)
+        const votingBaseTime = (governances[0] as unknown as { config?: { votingBaseTime?: number } })
+          ?.config?.votingBaseTime ?? undefined;
         return proposals
-          .map(serializeProposal)
-          .filter((proposal) => isVotingStatus(proposal.status))
+          .map((p) => serializeProposal(p, votingBaseTime))
+          .filter((proposal) => isVotingStatus(proposal.status) && isVotingTimeActive(proposal))
           .map((proposal) => ({
             address: proposal.address,
             title: proposal.title,
             description: normalizeProposalDescription(proposal.descriptionLink),
             realmName: realm.name,
+            realmAddress: realm.address,
             forVotes: proposal.forVotes,
             againstVotes: proposal.againstVotes,
             abstainVotes: proposal.abstainVotes,
@@ -94,6 +112,7 @@ async function runWithConcurrency<T, R>(
   items: T[],
   concurrency: number,
   worker: (item: T) => Promise<R>,
+  throttleDelayMs = DEFAULT_THROTTLE_DELAY_MS,
 ): Promise<R[]> {
   if (items.length === 0) return [];
 
@@ -106,6 +125,10 @@ async function runWithConcurrency<T, R>(
       const index = cursor;
       cursor += 1;
       results[index] = await worker(items[index]);
+      // Throttle to avoid Z.AI rate limits
+      if (throttleDelayMs > 0 && cursor < items.length) {
+        await new Promise((r) => setTimeout(r, throttleDelayMs));
+      }
     }
   }
 
@@ -143,6 +166,9 @@ function summarizeResults(
       executed += 1;
     } else if (result.skipped) {
       skipped += 1;
+    } else {
+      // executed: false + skipped: false = on-chain tx failed
+      failed += 1;
     }
   }
 
@@ -174,6 +200,8 @@ export async function runWorkerCycle(options: WorkerCycleOptions): Promise<Worke
     }
   }
 
+  const throttleDelayMs = options.throttleDelayMs ?? DEFAULT_THROTTLE_DELAY_MS;
+
   const results = await runWithConcurrency(
     pairs,
     options.maxConcurrency,
@@ -203,6 +231,7 @@ export async function runWorkerCycle(options: WorkerCycleOptions): Promise<Worke
         return { kind: 'failed', reason: String(error) } as const;
       }
     },
+    throttleDelayMs,
   );
 
   const summary = summarizeResults(

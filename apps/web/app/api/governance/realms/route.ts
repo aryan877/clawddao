@@ -21,10 +21,8 @@ export async function GET() {
 
     const results = await Promise.allSettled(
       trackedRealms.map(async (entry) => {
-        const [{ realm, governances }, proposals] = await Promise.all([
-          fetchRealm(entry.address),
-          fetchProposalsForRealm(entry.address),
-        ]);
+        const { realm, governances } = await fetchRealm(entry.address);
+        const proposals = await fetchProposalsForRealm(entry.address, governances);
 
         const sorted = [...proposals].sort(
           (a, b) => getProposalDraftTimestamp(b) - getProposalDraftTimestamp(a),
@@ -53,7 +51,9 @@ export async function GET() {
       )
       .map((r) => r.value);
 
-    return NextResponse.json(realms);
+    return NextResponse.json(realms, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' },
+    });
   } catch (error) {
     console.error('GET /api/governance/realms failed:', error);
     return NextResponse.json(

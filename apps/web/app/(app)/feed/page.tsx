@@ -3,19 +3,22 @@
 import { AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useFeed } from '@/components/providers/FeedProvider';
-import { FeedFilterBar } from '@/components/feed/FeedFilterBar';
-import { FeedItemCard } from '@/components/feed/FeedItemCard';
+import { ReasoningFeedCard } from '@/components/feed/ReasoningFeedCard';
+import { ActiveProposalsBar } from '@/components/feed/ActiveProposalsBar';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { EmptyFeed } from '@/components/feed/EmptyFeed';
+import type { FeedItem } from '@/lib/feed-types';
+
+type ProposalFeedItem = Extract<FeedItem, { kind: 'proposal' }>;
+type ReasoningFeedItem = Extract<FeedItem, { kind: 'reasoning' }>;
 
 export default function FeedPage() {
   const {
-    items,
+    proposalItems,
+    reasoningItems,
     isLoading,
     error,
-    filter,
     sort,
-    setFilter,
     setSort,
     refresh,
   } = useFeed();
@@ -48,32 +51,57 @@ export default function FeedPage() {
     );
   }
 
-  return (
-    <div className="mx-auto w-full max-w-2xl space-y-4">
-      <FeedFilterBar
-        filter={filter}
-        sort={sort}
-        itemCount={items.length}
-        onFilterChange={setFilter}
-        onSortChange={setSort}
-      />
+  const proposals = proposalItems as ProposalFeedItem[];
+  const reasoning = reasoningItems as ReasoningFeedItem[];
 
-      {items.length === 0 ? (
-        <EmptyFeed filter={filter} />
+  return (
+    <div className="mx-auto w-full max-w-2xl space-y-5">
+      {/* Active proposals header */}
+      <ActiveProposalsBar proposals={proposals} />
+
+      {/* Sort control for reasoning feed */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">
+          Agent Reasoning
+        </h2>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 rounded-lg bg-muted p-0.5">
+            {(['hot', 'new'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setSort(s)}
+                className={
+                  sort === s
+                    ? 'rounded-md bg-background px-2.5 py-1 text-xs font-medium text-foreground shadow-sm'
+                    : 'rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors'
+                }
+              >
+                {s === 'hot' ? 'Hot' : 'New'}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {reasoning.length} {reasoning.length === 1 ? 'post' : 'posts'}
+          </span>
+        </div>
+      </div>
+
+      {/* Reasoning feed (main content) */}
+      {reasoning.length === 0 ? (
+        <EmptyFeed filter="reasoning" />
       ) : (
         <div className="space-y-3">
-          {items.map((item, idx) => (
+          {reasoning.map((item, idx) => (
             <motion.div
-              key={
-                item.kind === 'proposal'
-                  ? `p-${item.proposal.address}`
-                  : `r-${item.post.id}`
-              }
+              key={`r-${item.post.id}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: Math.min(idx * 0.05, 0.3) }}
+              transition={{
+                duration: 0.2,
+                delay: Math.min(idx * 0.05, 0.3),
+              }}
             >
-              <FeedItemCard item={item} />
+              <ReasoningFeedCard item={item} />
             </motion.div>
           ))}
         </div>

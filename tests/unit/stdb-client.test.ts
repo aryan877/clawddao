@@ -609,6 +609,45 @@ describe('stdb-client', () => {
   });
 
   // -----------------------------------------------------------------------
+  // getAgentsByIds
+  // -----------------------------------------------------------------------
+  describe('getAgentsByIds', () => {
+    it('returns a Map of agents for valid IDs', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse([
+          {
+            schema: { elements: [{ name: 'id' }, { name: 'name' }] },
+            rows: [
+              [5n, 'Agent-Five'],
+              [10n, 'Agent-Ten'],
+            ],
+          },
+        ]),
+      );
+
+      const { getAgentsByIds } = await import('@shared/lib/stdb-client');
+      const map = await getAgentsByIds([5n, 10n]);
+
+      expect(map.size).toBe(2);
+      expect(map.get(5n)).toEqual({ id: 5n, name: 'Agent-Five' });
+      expect(map.get(10n)).toEqual({ id: 10n, name: 'Agent-Ten' });
+
+      const sqlBody = mockFetch.mock.calls[1][1].body;
+      expect(sqlBody).toContain('id IN (5, 10)');
+    });
+
+    it('returns empty Map for empty input without making a query', async () => {
+      const { getAgentsByIds } = await import('@shared/lib/stdb-client');
+      const map = await getAgentsByIds([]);
+
+      expect(map.size).toBe(0);
+      // No fetch calls should have been made
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  // -----------------------------------------------------------------------
   // healthCheck
   // -----------------------------------------------------------------------
   describe('healthCheck', () => {

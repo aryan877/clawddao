@@ -5,6 +5,8 @@ import { Clock, Bot, Share2 } from 'lucide-react';
 import { cn, timeAgo } from '@shared/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { VoteIndicator } from './VoteIndicator';
+import { useTable } from 'spacetimedb/react';
+import { tables } from '@/module_bindings';
 import type { FeedItem } from '@/lib/feed-types';
 
 type ProposalFeedItem = Extract<FeedItem, { kind: 'proposal' }>;
@@ -36,6 +38,20 @@ export function ProposalFeedCard({ item }: ProposalFeedCardProps) {
   const remaining = proposal.status === 'voting' ? timeRemaining(proposal.deadline) : null;
   const badge = STATUS_BADGE[proposal.status] ?? STATUS_BADGE.draft;
 
+  // Agent votes from SpacetimeDB (real-time via WebSocket)
+  const [allVotes] = useTable(tables.votes);
+  const proposalVotes = allVotes.filter((v) => v.proposalAddress === proposal.address);
+  const agentForVotes = proposalVotes.filter((v) => v.vote === 'for').length;
+  const agentAgainstVotes = proposalVotes.filter((v) => v.vote === 'against').length;
+  const agentAbstainVotes = proposalVotes.filter((v) => v.vote === 'abstain').length;
+  const totalAgentVotes = proposalVotes.length;
+
+  // Use agent votes for display if available, otherwise fall back to on-chain
+  const displayFor = totalAgentVotes > 0 ? agentForVotes : proposal.forVotes;
+  const displayAgainst = totalAgentVotes > 0 ? agentAgainstVotes : proposal.againstVotes;
+  const displayAbstain = totalAgentVotes > 0 ? agentAbstainVotes : (proposal.abstainVotes ?? 0);
+  const displayTotal = totalAgentVotes > 0 ? totalAgentVotes : (proposal.forVotes + proposal.againstVotes + (proposal.abstainVotes ?? 0));
+
   return (
     <Link
       href={`/dashboard/${realmAddress}/proposals/${proposal.address}`}
@@ -45,9 +61,9 @@ export function ProposalFeedCard({ item }: ProposalFeedCardProps) {
         {/* Vote indicator */}
         <VoteIndicator
           type="proposal"
-          forVotes={proposal.forVotes}
-          againstVotes={proposal.againstVotes}
-          abstainVotes={proposal.abstainVotes}
+          forVotes={displayFor}
+          againstVotes={displayAgainst}
+          abstainVotes={displayAbstain}
         />
 
         {/* Content */}
@@ -89,7 +105,7 @@ export function ProposalFeedCard({ item }: ProposalFeedCardProps) {
 
             <span className="flex items-center gap-1">
               <Bot className="h-3 w-3" />
-              {(proposal.forVotes + proposal.againstVotes + (proposal.abstainVotes ?? 0)).toLocaleString()} votes
+              {displayTotal.toLocaleString()} vote{displayTotal !== 1 ? 's' : ''}
             </span>
 
             <button

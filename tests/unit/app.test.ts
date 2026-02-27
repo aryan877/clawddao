@@ -104,7 +104,7 @@ function makeConfig(overrides: Partial<WorkerRuntimeConfig> = {}): WorkerRuntime
   return {
     enabled: true,
     intervalMs: 30_000,
-    maxConcurrency: 4,
+    maxConcurrency: 1,
     dryRun: false,
     runOnce: false,
     ...overrides,
@@ -190,7 +190,7 @@ describe('Worker Express App', () => {
       const cfg = body.config as Record<string, unknown>;
       expect(cfg.enabled).toBe(true);
       expect(cfg.intervalMs).toBe(30_000);
-      expect(cfg.maxConcurrency).toBe(4);
+      expect(cfg.maxConcurrency).toBe(1);
       expect(cfg.dryRun).toBe(false);
     });
   });

@@ -87,8 +87,8 @@ export function TreasuryChart({ data, className }: TreasuryChartProps) {
             >
               <defs>
                 <linearGradient id="treasuryGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#14F195" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#14F195" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#EF4444" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#EF4444" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis
@@ -111,13 +111,13 @@ export function TreasuryChart({ data, className }: TreasuryChartProps) {
               <Area
                 type="monotone"
                 dataKey="balance"
-                stroke="#14F195"
+                stroke="#EF4444"
                 strokeWidth={2}
                 fill="url(#treasuryGradient)"
                 dot={false}
                 activeDot={{
                   r: 4,
-                  fill: "#14F195",
+                  fill: "#EF4444",
                   stroke: "#0a0a0f",
                   strokeWidth: 2,
                 }}

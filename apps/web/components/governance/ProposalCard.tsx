@@ -14,8 +14,11 @@ import {
   ThumbsUp,
   ThumbsDown,
   Minus,
+  Link2,
 } from "lucide-react";
 import { useMemo } from "react";
+import { useTable } from "spacetimedb/react";
+import { tables } from "@/module_bindings";
 
 interface ProposalCardProps {
   proposal: Proposal;
@@ -56,19 +59,26 @@ function statusBadgeClass(status: string): string {
 }
 
 export function ProposalCard({ proposal }: ProposalCardProps) {
-  const totalVotes = useMemo(
-    () =>
-      proposal.forVotes +
-      proposal.againstVotes +
-      (proposal.abstainVotes ?? 0),
-    [proposal.forVotes, proposal.againstVotes, proposal.abstainVotes]
+  // Prefer STDB agent votes over on-chain counts (on-chain may be 0 when txs fail)
+  const [allVotes] = useTable(tables.votes);
+  const proposalVotes = useMemo(
+    () => allVotes.filter((v) => v.proposalAddress === proposal.address),
+    [allVotes, proposal.address]
   );
+  const agentFor = useMemo(() => proposalVotes.filter((v) => v.vote === "for").length, [proposalVotes]);
+  const agentAgainst = useMemo(() => proposalVotes.filter((v) => v.vote === "against").length, [proposalVotes]);
+  const agentAbstain = useMemo(() => proposalVotes.filter((v) => v.vote === "abstain").length, [proposalVotes]);
+  const hasAgentVotes = proposalVotes.length > 0;
+  const onChainCount = useMemo(() => proposalVotes.filter((v) => v.txSignature).length, [proposalVotes]);
 
-  const forPercent = totalVotes > 0 ? (proposal.forVotes / totalVotes) * 100 : 0;
-  const againstPercent =
-    totalVotes > 0 ? (proposal.againstVotes / totalVotes) * 100 : 0;
-  const abstainPercent =
-    totalVotes > 0 ? ((proposal.abstainVotes ?? 0) / totalVotes) * 100 : 0;
+  const displayFor = hasAgentVotes ? agentFor : proposal.forVotes;
+  const displayAgainst = hasAgentVotes ? agentAgainst : proposal.againstVotes;
+  const displayAbstain = hasAgentVotes ? agentAbstain : (proposal.abstainVotes ?? 0);
+
+  const totalVotes = displayFor + displayAgainst + displayAbstain;
+  const forPercent = totalVotes > 0 ? (displayFor / totalVotes) * 100 : 0;
+  const againstPercent = totalVotes > 0 ? (displayAgainst / totalVotes) * 100 : 0;
+  const abstainPercent = totalVotes > 0 ? (displayAbstain / totalVotes) * 100 : 0;
 
   const timeRemaining = getTimeRemaining(proposal.deadline);
   const isActive = proposal.status === "voting";
@@ -109,10 +119,10 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <ThumbsUp className="h-3 w-3 text-green-400" />
-              For: {formatNumber(proposal.forVotes)}
+              For: {formatNumber(displayFor)}
             </span>
             <span className="flex items-center gap-1">
-              Against: {formatNumber(proposal.againstVotes)}
+              Against: {formatNumber(displayAgainst)}
               <ThumbsDown className="h-3 w-3 text-red-400" />
             </span>
           </div>
@@ -133,10 +143,17 @@ export function ProposalCard({ proposal }: ProposalCardProps) {
           {totalVotes > 0 && (
             <div className="flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Total: {formatNumber(totalVotes)}</span>
-              <span className="inline-flex items-center gap-1">
-                <Minus className="h-3 w-3 text-zinc-400" />
-                Abstain: {abstainPercent.toFixed(1)}%
-              </span>
+              {onChainCount > 0 ? (
+                <span className="inline-flex items-center gap-1 text-primary/70">
+                  <Link2 className="h-3 w-3" />
+                  {onChainCount} on-chain
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <Minus className="h-3 w-3 text-zinc-400" />
+                  Abstain: {abstainPercent.toFixed(1)}%
+                </span>
+              )}
             </div>
           )}
         </div>

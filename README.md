@@ -4,7 +4,7 @@
 
 > Delegate your tokens. Let intelligent agents grip the details.
 
-Built for [Solana Graveyard Hackathon](https://www.colosseum.org/) (Feb 2026) — resurrecting DAO governance participation.
+Built for [Solana Graveyard Hackathon](https://solana.com/graveyard-hack) (Feb 2026) — resurrecting DAO governance participation.
 
 ---
 
@@ -126,7 +126,7 @@ clawddao/
 ├── packages/shared/       Shared business logic
 │   ├── lib/               privy-client, stdb-client, ai, governance, auth
 │   └── types/             TypeScript interfaces
-├── spacetimedb/           Database schema (5 tables, 6 reducers)
+├── spacetimedb/           Database schema (6 tables, 10 reducers)
 ├── scripts/               CLI utilities
 └── tests/                 unit/ | integration/ | live/
 ```
@@ -169,6 +169,32 @@ docker-compose up -d   # SpacetimeDB + app + worker
 ```
 
 See `docker-compose.yml` for service configuration. The app runs on :3001 (proxied from :3000 internal), the worker on :4000, and SpacetimeDB on :3000.
+
+---
+
+## Devnet Addresses
+
+All on-chain accounts are deployed on **Solana devnet**. Verify on [Solana Explorer](https://explorer.solana.com/?cluster=devnet).
+
+### Programs (existing, not deployed by us)
+
+| Program | Address |
+|---------|---------|
+| SPL Governance | `GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw` |
+| Tapestry (Social Graph) | `GraphUyqhPmEAckWzi7zAvbvUTXf8kqX7JtuvdGYRDRh` |
+
+### ClawdDAO Test Realm
+
+| Account | Address |
+|---------|---------|
+| Realm | [`j3JUuwBzzh1VHcE8gskSXbjjemK4kxZjvnvWfBLrRdk`](https://explorer.solana.com/address/j3JUuwBzzh1VHcE8gskSXbjjemK4kxZjvnvWfBLrRdk?cluster=devnet) |
+| Community Mint | [`DUbjFBEzFaetxPFtkj3qHehbnAnKbANSP8vrRc1bU7oQ`](https://explorer.solana.com/address/DUbjFBEzFaetxPFtkj3qHehbnAnKbANSP8vrRc1bU7oQ?cluster=devnet) |
+| Governance | [`BSFmGCp182MtA7zwao7zZE5X9ggeqUtP3kHyyvw4Q2aS`](https://explorer.solana.com/address/BSFmGCp182MtA7zwao7zZE5X9ggeqUtP3kHyyvw4Q2aS?cluster=devnet) |
+| Proposal | [`5wtzgyNpsPwFwuEgQi24e4fsXDeEDpggGE4UN1rgxjMj`](https://explorer.solana.com/address/5wtzgyNpsPwFwuEgQi24e4fsXDeEDpggGE4UN1rgxjMj?cluster=devnet) |
+| Token Owner Record | [`4aW8j7Ab5eVdgduAjSWEsXgFSK9D9ZWdexk2itWu3sSV`](https://explorer.solana.com/address/4aW8j7Ab5eVdgduAjSWEsXgFSK9D9ZWdexk2itWu3sSV?cluster=devnet) |
+| Payer | [`Cg8XMLSuEf5CUwnyr4GuM6mJRAPa9c1PJs6q3k5BmiM5`](https://explorer.solana.com/address/Cg8XMLSuEf5CUwnyr4GuM6mJRAPa9c1PJs6q3k5BmiM5?cluster=devnet) |
+
+> Created via `scripts/setup-devnet-realm.ts` — mints 1M governance tokens, creates realm + governance + proposal, signs off to Voting state.
 
 ---
 

@@ -27,9 +27,7 @@ export function TopNavbar() {
     <header className="sticky top-0 z-50 flex h-14 items-center gap-4 border-b border-border bg-sidebar px-4 backdrop-blur-sm">
       {/* Logo */}
       <Link href="/feed" className="flex shrink-0 items-center gap-2">
-        <span className="text-xl" role="img" aria-label="claw">
-          🐾
-        </span>
+        <img src="/logo-mascot.png" alt="ClawdDAO" className="h-7 w-7 rounded-md" />
         <span className="hidden text-base font-bold tracking-tight text-foreground sm:inline">
           ClawdDAO
         </span>

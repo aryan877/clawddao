@@ -92,32 +92,48 @@ interface ProposalInfo {
 /**
  * Fetch the on-chain proposal to extract required account addresses
  * for building vote instructions.
+ *
+ * ProposalV2 doesn't store `realm` directly — it lives on the governance account.
+ * Pass `fallbackRealmAddress` from the tracked realm context to avoid an extra RPC call.
  */
-export async function getProposalInfo(proposalAddress: string): Promise<ProposalInfo> {
+export async function getProposalInfo(
+  proposalAddress: string,
+  fallbackRealmAddress?: string,
+): Promise<ProposalInfo> {
   const gov = getGovernanceClient();
   const proposalPubkey = new PublicKey(proposalAddress);
   const proposal = await gov.getProposalByPubkey(proposalPubkey);
 
-  // The proposal account contains references to its parent governance and realm.
-  // governance-idl-sdk uses Anchor's decoded format.
   const p = proposal as unknown as {
     publicKey: PublicKey;
     governance: PublicKey;
     governingTokenMint: PublicKey;
     tokenOwnerRecord: PublicKey;
-    realm: PublicKey;
+    realm?: PublicKey;
   };
 
-  if (!p.governance || !p.governingTokenMint || !p.tokenOwnerRecord || !p.realm) {
+  if (!p.governance || !p.governingTokenMint || !p.tokenOwnerRecord) {
     throw new Error(
       `Proposal ${proposalAddress} is missing required fields. ` +
       `Got governance=${p.governance}, mint=${p.governingTokenMint}, ` +
-      `TOR=${p.tokenOwnerRecord}, realm=${p.realm}`,
+      `TOR=${p.tokenOwnerRecord}`,
+    );
+  }
+
+  // Prefer on-chain realm if present, otherwise use the fallback from context.
+  let realmAddress = p.realm;
+  if (!realmAddress && fallbackRealmAddress) {
+    realmAddress = new PublicKey(fallbackRealmAddress);
+  }
+  if (!realmAddress) {
+    throw new Error(
+      `Cannot determine realm for proposal ${proposalAddress}. ` +
+      `ProposalV2 has no realm field and no fallbackRealmAddress was provided.`,
     );
   }
 
   return {
-    realmAddress: p.realm,
+    realmAddress,
     governanceAddress: p.governance,
     governingTokenMint: p.governingTokenMint,
     proposalOwnerTokenOwnerRecord: p.tokenOwnerRecord,
@@ -142,6 +158,14 @@ export async function buildCastVoteTransaction(params: {
   voterWalletAddress: string;
   /** The vote direction: 'for' | 'against' | 'abstain' | 'veto' */
   voteDirection: string;
+  /** The realm address — ProposalV2 doesn't store realm directly */
+  realmAddress?: string;
+  /**
+   * If voting via delegation, the address of the delegator whose
+   * TokenOwnerRecord has this agent set as delegate.
+   * When set, the TOR is derived from this address instead of the voter.
+   */
+  delegatorAddress?: string;
 }): Promise<{
   serializedTransaction: string;
   proposalInfo: ProposalInfo;
@@ -152,14 +176,19 @@ export async function buildCastVoteTransaction(params: {
   const proposalPubkey = new PublicKey(params.proposalAddress);
   const voterPubkey = new PublicKey(params.voterWalletAddress);
 
-  // Fetch proposal to get governance, realm, mint, etc.
-  const info = await getProposalInfo(params.proposalAddress);
+  // Fetch proposal to get governance, mint, etc. Pass realm as fallback.
+  const info = await getProposalInfo(params.proposalAddress, params.realmAddress);
 
-  // Derive the voter's TokenOwnerRecord PDA
+  // Derive the TokenOwnerRecord PDA.
+  // If delegatorAddress is set, use the delegator's TOR (agent is the delegate).
+  // Otherwise, use the voter's own TOR (agent owns tokens directly).
+  const torOwner = params.delegatorAddress
+    ? new PublicKey(params.delegatorAddress)
+    : voterPubkey;
   const voterTokenOwnerRecord = gov.pda.tokenOwnerRecordAccount({
     realmAccount: info.realmAddress,
     governingTokenMintAccount: info.governingTokenMint,
-    governingTokenOwner: voterPubkey,
+    governingTokenOwner: torOwner,
   }).publicKey;
 
   // Build the vote

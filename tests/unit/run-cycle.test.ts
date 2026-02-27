@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ---------------------------------------------------------------------------
 
 vi.mock('@shared/lib/governance', () => ({
+  fetchRealm: vi.fn(),
   fetchProposalsForRealm: vi.fn(),
   serializeProposal: vi.fn(),
 }));
@@ -22,7 +23,7 @@ vi.mock('@shared/lib/autonomous-vote-engine', () => ({
 
 import { runWorkerCycle } from '../../apps/worker/run-cycle';
 import type { WorkerCycleSummary } from '../../apps/worker/run-cycle';
-import { fetchProposalsForRealm, serializeProposal } from '@shared/lib/governance';
+import { fetchRealm, fetchProposalsForRealm, serializeProposal } from '@shared/lib/governance';
 import { getAllActiveAgents, getTrackedRealms, hasAgentVoted } from '@shared/lib/stdb-client';
 import type { AgentRow, TrackedRealmRow } from '@shared/lib/stdb-client';
 import { executeAutonomousVote, isAgentEligibleForAutonomy } from '@shared/lib/autonomous-vote-engine';
@@ -34,6 +35,7 @@ import type { AutonomousVoteResult, GovernanceProposalContext } from '@shared/li
 
 const mockGetTrackedRealms = vi.mocked(getTrackedRealms);
 const mockGetAllActiveAgents = vi.mocked(getAllActiveAgents);
+const mockFetchRealm = vi.mocked(fetchRealm);
 const mockFetchProposalsForRealm = vi.mocked(fetchProposalsForRealm);
 const mockSerializeProposal = vi.mocked(serializeProposal);
 const mockIsAgentEligibleForAutonomy = vi.mocked(isAgentEligibleForAutonomy);
@@ -113,7 +115,7 @@ function makeVoteResult(overrides: Partial<AutonomousVoteResult> = {}): Autonomo
 // Default options
 // ---------------------------------------------------------------------------
 
-const defaultOptions = { dryRun: false, maxConcurrency: 4 };
+const defaultOptions = { dryRun: false, maxConcurrency: 1, throttleDelayMs: 0 };
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -126,6 +128,7 @@ describe('runWorkerCycle', () => {
     // Sensible defaults: no realms, no agents
     mockGetTrackedRealms.mockResolvedValue([]);
     mockGetAllActiveAgents.mockResolvedValue([]);
+    mockFetchRealm.mockResolvedValue({ realm: {} as never, governances: [] });
     mockFetchProposalsForRealm.mockResolvedValue([]);
     mockSerializeProposal.mockReturnValue(makeSerializedProposal() as never);
     mockIsAgentEligibleForAutonomy.mockReturnValue(false);
@@ -211,6 +214,11 @@ describe('runWorkerCycle', () => {
     // Each combination calls executeAutonomousVote (not skipped by hasAgentVoted
     // because that check is inside the worker callback)
     expect(mockExecuteAutonomousVote).toHaveBeenCalledTimes(6);
+    // Worker should pass preloaded governances to fetchProposalsForRealm
+    expect(mockFetchProposalsForRealm).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
   // -------------------------------------------------------------------------
@@ -251,7 +259,7 @@ describe('runWorkerCycle', () => {
     });
 
     const concurrencyLimit = 3;
-    await runWorkerCycle({ dryRun: false, maxConcurrency: concurrencyLimit });
+    await runWorkerCycle({ dryRun: false, maxConcurrency: concurrencyLimit, throttleDelayMs: 0 });
 
     // Peak concurrency should not exceed the limit
     expect(peakConcurrency).toBeLessThanOrEqual(concurrencyLimit);

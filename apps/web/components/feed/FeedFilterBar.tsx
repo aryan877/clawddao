@@ -17,6 +17,7 @@ const FILTERS: { key: FeedFilter; label: string }[] = [
   { key: 'active', label: 'Active' },
   { key: 'new', label: 'New' },
   { key: 'completed', label: 'Completed' },
+  { key: 'reasoning', label: 'Reasoning' },
 ];
 
 const SORTS: { key: FeedSort; label: string }[] = [

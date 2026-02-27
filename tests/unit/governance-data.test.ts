@@ -49,8 +49,10 @@ async function makePubkey(address: string) {
 }
 
 describe('governance (governance-data)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const { clearGovernanceCache } = await import('@shared/lib/governance');
+    clearGovernanceCache();
   });
 
   // -----------------------------------------------------------------------

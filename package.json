@@ -12,6 +12,7 @@
     "agent:worker:once": "tsx --tsconfig apps/worker/tsconfig.json apps/worker/agent-worker.ts --once",
     "agent:worker:dry-run": "tsx --tsconfig apps/worker/tsconfig.json apps/worker/agent-worker.ts --dry-run --once",
     "setup:devnet-realm": "tsx scripts/setup-devnet-realm.ts",
+    "seed:demo": "DOTENV_CONFIG_PATH=.env.local tsx -r dotenv/config scripts/seed-demo.ts",
     "spacetimedb:up": "docker-compose up -d spacetimedb",
     "spacetimedb:down": "docker-compose down",
     "spacetimedb:logs": "docker-compose logs -f spacetimedb",

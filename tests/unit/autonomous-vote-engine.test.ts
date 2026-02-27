@@ -78,6 +78,7 @@ function makeProposal(overrides: Partial<GovernanceProposalContext> = {}): Gover
     title: 'Grant Program',
     description: 'Allocate funds for developer grants',
     realmName: 'TestDAO',
+    realmAddress: 'realmAddr1',
     forVotes: 1000,
     againstVotes: 200,
     status: 'voting',
@@ -151,6 +152,7 @@ describe('autonomous-vote-engine', () => {
         proposalAddress: 'proposal-abc',
         voterWalletAddress: 'pw-addr-456',
         voteDirection: 'for',
+        realmAddress: 'realmAddr1',
       });
       expect(mockSignAndSendTransaction).toHaveBeenCalledWith({
         walletId: 'pw-id-123',
@@ -325,7 +327,7 @@ describe('autonomous-vote-engine', () => {
   // Partial failures
   // -----------------------------------------------------------------------
   describe('partial failures', () => {
-    it('records vote even when on-chain tx fails', async () => {
+    it('does NOT record vote in STDB when on-chain tx fails', async () => {
       const agent = makeAgent();
       const proposal = makeProposal();
 
@@ -341,28 +343,21 @@ describe('autonomous-vote-engine', () => {
         new Error('Privy signing failed'),
       );
 
-      // Tapestry still works
-      mockGetOrCreateProfile.mockResolvedValueOnce({
-        profile: { id: 'profile-1' },
-      });
-      mockPostVoteReasoning.mockResolvedValueOnce({ id: 'content-1' });
-      mockRecordVote.mockResolvedValueOnce({ ok: true });
-
       const { executeAutonomousVote } = await import(
         '@shared/lib/autonomous-vote-engine'
       );
       const result = await executeAutonomousVote({ agent, proposal });
 
-      // Still executed (tried) — txSignature should be null due to failure
-      expect(result.executed).toBe(true);
+      // On-chain failed — executed should be false
+      expect(result.executed).toBe(false);
+      expect(result.skipped).toBe(false);
+      expect(result.vote).toBe('for');
       expect(result.txSignature).toBeNull();
-      expect(result.tapestryContentId).toBe('content-1');
 
-      // Vote still recorded in STDB
-      expect(mockRecordVote).toHaveBeenCalledTimes(1);
-      const recordCall = mockRecordVote.mock.calls[0][0];
-      expect(recordCall.tx_signature).toBeNull();
-      expect(recordCall.tapestry_content_id).toBe('content-1');
+      // STDB vote should NOT be recorded
+      expect(mockRecordVote).not.toHaveBeenCalled();
+      // Tapestry should NOT be called either
+      expect(mockPostVoteReasoning).not.toHaveBeenCalled();
     });
 
     it('records vote even when tapestry post fails', async () => {

@@ -77,7 +77,9 @@ describe('privy-client', () => {
         name: 'Agent voting policy',
         rules: [
           { name: 'Max 0.1 SOL per transaction', action: 'ALLOW' },
-          { name: 'Chain devnet only', action: 'ALLOW' },
+          { name: 'Allow SPL Governance voting', action: 'ALLOW' },
+          { name: 'Allow signTransaction with transfer limit', action: 'ALLOW' },
+          { name: 'Allow signTransaction for governance', action: 'ALLOW' },
         ],
       };
 
@@ -87,7 +89,7 @@ describe('privy-client', () => {
       const result = await createPolicy({ maxSolPerTx: 0.1 });
 
       expect(result.id).toBe('policy-123');
-      expect(result.rules).toHaveLength(2);
+      expect(result.rules).toHaveLength(4);
 
       const [url, opts] = mockFetch.mock.calls[0];
       expect(url).toBe('https://api.privy.io/v1/policies');
@@ -99,7 +101,12 @@ describe('privy-client', () => {
       const body = JSON.parse(opts.body);
       expect(body.name).toBe('Agent voting policy');
       expect(body.chain_type).toBe('solana');
-      expect(body.rules).toHaveLength(2);
+      expect(body.rules).toHaveLength(4);
+      // Verify governance rule is present
+      const govRule = body.rules.find((r: { name: string }) => r.name === 'Allow SPL Governance voting');
+      expect(govRule).toBeDefined();
+      expect(govRule.conditions[0].field_source).toBe('solana_program_instruction');
+      expect(govRule.conditions[0].field).toBe('programId');
     });
 
     it('throws when Privy returns an error', async () => {
@@ -203,7 +210,7 @@ describe('privy-client', () => {
       expect(opts.headers.Authorization).toBe(expectedAuth);
 
       const body = JSON.parse(opts.body);
-      expect(body.method).toBe('solana_signAndSendTransaction');
+      expect(body.method).toBe('signAndSendTransaction');
       expect(body.params.transaction).toBe('base64EncodedTransactionData==');
       expect(body.params.encoding).toBe('base64');
     });
@@ -246,20 +253,20 @@ describe('privy-client', () => {
   // Rate limit enforcement
   // -----------------------------------------------------------------------
   describe('rate limit enforcement', () => {
-    it('allows up to 5 transactions per hour per agent', async () => {
+    it('allows up to 50 transactions per hour per agent', async () => {
       process.env.PRIVY_APP_ID = 'test-app-id';
       process.env.PRIVY_APP_SECRET = 'test-app-secret';
 
       // Each call returns a valid response
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 51; i++) {
         mockFetch.mockResolvedValueOnce(fakeResponse({ hash: `tx-${i}` }));
       }
 
       const { signAndSendTransaction } = await import('@shared/lib/privy-client');
       const base64Tx = 'a]very-long-base64-transaction-string-for-testing';
 
-      // First 5 should succeed
-      for (let i = 0; i < 5; i++) {
+      // First 50 should succeed
+      for (let i = 0; i < 50; i++) {
         await signAndSendTransaction({
           walletId: 'w1',
           agentId: 'rate-test-agent',
@@ -267,7 +274,7 @@ describe('privy-client', () => {
         });
       }
 
-      // 6th should throw rate limit error
+      // 51st should throw rate limit error
       await expect(
         signAndSendTransaction({
           walletId: 'w1',

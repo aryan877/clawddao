@@ -15,16 +15,16 @@ function getClient() {
 export const GovernanceAnalysisSchema = z.object({
   summary: z.string().describe("2-3 sentence summary of the proposal"),
   risk_assessment: z.object({
-    treasury_impact: z.string().describe("How this affects the DAO treasury"),
-    security_risk: z.string().describe("Any security implications"),
-    centralization_risk: z.string().describe("Impact on decentralization"),
-    overall_risk_score: z.number().min(0).max(100).describe("0=no risk, 100=extreme risk"),
+    treasury_impact: z.string().default("Unknown").describe("How this affects the DAO treasury"),
+    security_risk: z.string().default("Unknown").describe("Any security implications"),
+    centralization_risk: z.string().default("Unknown").describe("Impact on decentralization"),
+    overall_risk_score: z.number().min(0).max(100).default(50).describe("0=no risk, 100=extreme risk"),
   }),
   recommendation: z.object({
     vote: z.enum(["FOR", "AGAINST", "ABSTAIN"]),
     confidence: z.number().min(0).max(1).describe("0-1 confidence score"),
     reasoning: z.string().describe("Detailed reasoning for the vote recommendation"),
-    conditions: z.array(z.string()).describe("Conditions or caveats for this recommendation"),
+    conditions: z.array(z.string()).default([]).describe("Conditions or caveats for this recommendation"),
   }),
 });
 

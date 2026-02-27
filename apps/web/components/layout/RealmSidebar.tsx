@@ -3,6 +3,7 @@
 import { cn, shortAddress } from '@shared/lib/utils';
 import { useFeed } from '@/components/providers/FeedProvider';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LayoutGrid } from 'lucide-react';
 
 export function RealmSidebar() {
   const { realms, isLoading, activeRealm, setActiveRealm } = useFeed();
@@ -41,8 +42,8 @@ export function RealmSidebar() {
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 )}
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-                  *
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <LayoutGrid className="h-3.5 w-3.5" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <span className="font-medium">All DAOs</span>

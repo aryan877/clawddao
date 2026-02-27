@@ -44,6 +44,7 @@ export function makeProposal(overrides: Record<string, unknown> = {}) {
     title: 'Test Proposal: Fund dev grants',
     description: 'Allocate 10K SOL to developer grants program.',
     realmName: 'TestDAO',
+    realmAddress: 'realmAddr111111111111111111111111111111111',
     forVotes: 1000,
     againstVotes: 200,
     abstainVotes: 50,

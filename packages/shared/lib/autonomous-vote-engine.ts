@@ -14,6 +14,7 @@ export interface GovernanceProposalContext {
   title: string;
   description: string;
   realmName: string;
+  realmAddress: string;
   forVotes: number;
   againstVotes: number;
   abstainVotes?: number;
@@ -25,6 +26,8 @@ export interface ParsedAgentConfig {
   confidenceThreshold: number;
   values: string[];
   focusAreas: string[];
+  /** Delegator wallet address — agent votes using this wallet's TOR */
+  delegatorAddress?: string;
 }
 
 export interface AutonomousVoteResult {
@@ -58,6 +61,7 @@ function parseAgentConfig(raw: string): ParsedAgentConfig {
           : defaults.confidenceThreshold,
       values: Array.isArray(parsed.values) ? parsed.values : defaults.values,
       focusAreas: Array.isArray(parsed.focusAreas) ? parsed.focusAreas : defaults.focusAreas,
+      delegatorAddress: typeof parsed.delegatorAddress === 'string' ? parsed.delegatorAddress : undefined,
     };
   } catch {
     return defaults;
@@ -250,31 +254,43 @@ export async function executeAutonomousVote(params: {
 
   let txSignature: string | null = null;
 
-  // Only attempt on-chain vote if the agent has a Privy wallet
-  if (agent.privy_wallet_id && agent.privy_wallet_address) {
-    try {
-      const { serializedTransaction } = await buildCastVoteTransaction({
-        proposalAddress: proposal.address,
-        voterWalletAddress: agent.privy_wallet_address,
-        voteDirection,
-      });
+  // On-chain vote must succeed before recording anything
+  try {
+    const { serializedTransaction } = await buildCastVoteTransaction({
+      proposalAddress: proposal.address,
+      voterWalletAddress: agent.privy_wallet_address,
+      voteDirection,
+      realmAddress: proposal.realmAddress,
+      delegatorAddress: config.delegatorAddress,
+    });
 
-      const txResult = await signAndSendTransaction({
-        walletId: agent.privy_wallet_id,
-        agentId,
-        serializedTransaction,
-      });
+    const txResult = await signAndSendTransaction({
+      walletId: agent.privy_wallet_id,
+      agentId,
+      serializedTransaction,
+    });
 
-      txSignature = txResult.txHash ?? null;
-    } catch (error) {
-      console.error(
-        `[autonomous-vote-engine] On-chain vote submission failed for agent=${agentId} proposal=${proposal.address}`,
-        error,
-      );
-    }
+    txSignature = txResult.txHash ?? null;
+  } catch (error) {
+    // On-chain tx failed — do NOT record vote to STDB
+    console.error(
+      `[autonomous-vote-engine] On-chain vote failed for agent=${agentId} proposal=${proposal.address}`,
+      error,
+    );
+    return {
+      agentId,
+      proposalAddress: proposal.address,
+      executed: false,
+      skipped: false,
+      vote: voteDirection,
+      confidence: recommendation.confidence,
+      reasoning: recommendation.reasoning,
+      txSignature: null,
+      tapestryContentId: null,
+    };
   }
 
-  // Always post to Tapestry — uses owner_wallet for profile, independent of Privy wallet
+  // Tx succeeded — post to Tapestry (best-effort, doesn't block)
   const tapestryContentId = await tryPostToTapestry(
     agent,
     agentId,
@@ -284,6 +300,7 @@ export async function executeAutonomousVote(params: {
     recommendation.confidence,
   );
 
+  // Record vote in STDB only after successful on-chain tx
   await recordVote({
     agent_id: agent.id,
     proposal_address: proposal.address,

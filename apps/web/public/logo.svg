@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="26" fill="#1E1E24"/>
+  <!-- Outer C arc -->
+  <path d="M78 28C62 18 38 24 28 42C18 60 24 82 42 92C56 100 72 96 82 86"
+        stroke="#EF4444" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <!-- Middle C arc -->
+  <path d="M72 40C62 32 46 36 40 48C34 60 36 76 48 82C58 88 68 84 74 76"
+        stroke="#EF4444" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  <!-- Inner C arc -->
+  <path d="M66 52C60 46 50 48 46 56C42 64 44 72 52 76C58 80 64 76 68 70"
+        stroke="#EF4444" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.25"/>
+  <!-- Core dot -->
+  <circle cx="56" cy="62" r="4.5" fill="#EF4444" opacity="0.8"/>
+</svg>

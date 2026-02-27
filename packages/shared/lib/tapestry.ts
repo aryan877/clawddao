@@ -145,6 +145,41 @@ export async function getContents(profileId?: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Likes
+// ---------------------------------------------------------------------------
+
+/**
+ * Like a content node. `profileId` is the user doing the liking,
+ * `contentId` is the Tapestry content node to like.
+ */
+export async function likeContent(profileId: string, contentId: string) {
+  try {
+    return await socialfi.likes.likesCreate(
+      { apiKey, nodeId: contentId },
+      { startId: profileId },
+    );
+  } catch (error) {
+    console.error('Tapestry likeContent failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Remove a like from a content node.
+ */
+export async function unlikeContent(profileId: string, contentId: string) {
+  try {
+    return await socialfi.likes.likesDelete(
+      { apiKey, nodeId: contentId },
+      { startId: profileId },
+    );
+  } catch (error) {
+    console.error('Tapestry unlikeContent failed:', error);
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Activity feed
 // ---------------------------------------------------------------------------
 

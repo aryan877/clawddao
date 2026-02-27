@@ -38,7 +38,7 @@ function makeConfig(overrides: Partial<WorkerRuntimeConfig> = {}): WorkerRuntime
   return {
     enabled: true,
     intervalMs: 30000,
-    maxConcurrency: 4,
+    maxConcurrency: 1,
     dryRun: false,
     runOnce: false,
     ...overrides,

@@ -22,7 +22,7 @@ export type FeedItem =
 
 // --- Filter / Sort ---
 
-export type FeedFilter = 'all' | 'active' | 'new' | 'completed';
+export type FeedFilter = 'all' | 'active' | 'new' | 'completed' | 'reasoning';
 export type FeedSort = 'hot' | 'new' | 'top';
 
 // --- Realm info from API ---
@@ -57,14 +57,20 @@ export function filterFeedItems(items: FeedItem[], filter: FeedFilter): FeedItem
   if (filter === 'all') return items;
 
   return items.filter((item) => {
+    if (filter === 'reasoning') {
+      return item.kind === 'reasoning';
+    }
+
+    // Non-reasoning tabs show only proposals
+    if (item.kind === 'reasoning') return false;
+
     if (filter === 'active') {
-      return item.kind === 'proposal' && item.proposal.status === 'voting';
+      return item.proposal.status === 'voting';
     }
     if (filter === 'new') {
       return Date.now() - item.timestamp.getTime() < SEVEN_DAYS;
     }
     if (filter === 'completed') {
-      if (item.kind !== 'proposal') return false;
       const s = item.proposal.status;
       return s === 'succeeded' || s === 'defeated' || s === 'completed';
     }
@@ -91,18 +97,20 @@ export function sortFeedItems(items: FeedItem[], sort: FeedSort): FeedItem[] {
     });
   }
 
-  // 'hot' — active proposals first, then by vote count
+  // 'hot' — interleave by recency, boost active proposals
   return sorted.sort((a, b) => {
-    const activeA = a.kind === 'proposal' && a.proposal.status === 'voting' ? 1 : 0;
-    const activeB = b.kind === 'proposal' && b.proposal.status === 'voting' ? 1 : 0;
-    if (activeB !== activeA) return activeB - activeA;
+    // Both proposals: active ones first, then by vote count
+    if (a.kind === 'proposal' && b.kind === 'proposal') {
+      const activeA = a.proposal.status === 'voting' ? 1 : 0;
+      const activeB = b.proposal.status === 'voting' ? 1 : 0;
+      if (activeB !== activeA) return activeB - activeA;
 
-    const votesA = a.kind === 'proposal'
-      ? a.proposal.forVotes + a.proposal.againstVotes + (a.proposal.abstainVotes ?? 0)
-      : 0;
-    const votesB = b.kind === 'proposal'
-      ? b.proposal.forVotes + b.proposal.againstVotes + (b.proposal.abstainVotes ?? 0)
-      : 0;
-    return votesB - votesA;
+      const votesA = a.proposal.forVotes + a.proposal.againstVotes + (a.proposal.abstainVotes ?? 0);
+      const votesB = b.proposal.forVotes + b.proposal.againstVotes + (b.proposal.abstainVotes ?? 0);
+      if (votesB !== votesA) return votesB - votesA;
+    }
+
+    // Mix reasoning posts in by timestamp
+    return b.timestamp.getTime() - a.timestamp.getTime();
   });
 }

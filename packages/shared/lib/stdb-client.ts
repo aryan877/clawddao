@@ -362,6 +362,21 @@ export async function getAgentById(agentId: bigint): Promise<AgentRow | null> {
   return rows[0] ?? null;
 }
 
+export async function getAgentsByIds(agentIds: bigint[]): Promise<Map<bigint, AgentRow>> {
+  if (agentIds.length === 0) return new Map();
+
+  const idList = agentIds.map((id) => id.toString()).join(', ');
+  const rows = await querySQL<AgentRow>(
+    `SELECT * FROM agents WHERE id IN (${idList})`,
+  );
+
+  const map = new Map<bigint, AgentRow>();
+  for (const row of rows) {
+    map.set(BigInt(row.id), row);
+  }
+  return map;
+}
+
 export async function getAllActiveAgents(): Promise<AgentRow[]> {
   const rows = await querySQL<AgentRow>(
     'SELECT * FROM agents WHERE is_active = true',

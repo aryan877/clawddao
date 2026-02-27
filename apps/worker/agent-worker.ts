@@ -33,7 +33,7 @@ export function getWorkerRuntimeConfig(): WorkerRuntimeConfig {
   return {
     enabled: readBoolEnv('AGENT_WORKER_ENABLED', true),
     intervalMs: readIntEnv('AGENT_WORKER_INTERVAL_MS', 30_000),
-    maxConcurrency: readIntEnv('AGENT_WORKER_MAX_CONCURRENCY', 4),
+    maxConcurrency: readIntEnv('AGENT_WORKER_MAX_CONCURRENCY', 1),
     dryRun: dryRunArg || readBoolEnv('AGENT_WORKER_DRY_RUN', false),
     runOnce: runOnceFlag,
   };

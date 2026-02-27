@@ -33,7 +33,7 @@ describe('getWorkerRuntimeConfig()', () => {
     const config = getWorkerRuntimeConfig();
     expect(config.enabled).toBe(true);
     expect(config.intervalMs).toBe(30_000);
-    expect(config.maxConcurrency).toBe(4);
+    expect(config.maxConcurrency).toBe(1);
     expect(config.dryRun).toBe(false);
     expect(config.runOnce).toBe(false);
   });

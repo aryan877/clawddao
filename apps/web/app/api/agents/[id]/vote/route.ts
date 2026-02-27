@@ -35,11 +35,12 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { proposalAddress, proposalTitle, proposalDescription, realmName } = body as {
+    const { proposalAddress, proposalTitle, proposalDescription, realmName, realmAddress } = body as {
       proposalAddress: string;
       proposalTitle: string;
       proposalDescription?: string;
       realmName: string;
+      realmAddress?: string;
     };
 
     if (!proposalAddress || !proposalTitle || !realmName) {
@@ -54,6 +55,7 @@ export async function POST(
       title: proposalTitle,
       description: proposalDescription || proposalTitle,
       realmName,
+      realmAddress: realmAddress || '',
       forVotes: 0,
       againstVotes: 0,
       status: 'voting',

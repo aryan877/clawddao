@@ -4,7 +4,7 @@ services:
     container_name: clawddao-spacetimedb
     command: start
     ports:
-      - "3000:3000"
+      - "3100:3000"
     environment:
       RUST_LOG: spacetimedb=info
     volumes:
@@ -17,26 +17,30 @@ services:
       retries: 5
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: npm run start
+    image: node:20
+    container_name: clawddao-app
+    working_dir: /app
+    command: sh -c "npm install --legacy-peer-deps && cd apps/web && npx next dev -p 3000"
     ports:
       - "3001:3000"
     environment:
       SPACETIMEDB_URL: http://spacetimedb:3000
+      WATCHPACK_POLLING: "true"
     env_file:
       - .env.local
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
     depends_on:
       spacetimedb:
         condition: service_healthy
     restart: unless-stopped
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: npm run agent:worker
+    image: node:20
+    container_name: clawddao-worker
+    working_dir: /app
+    command: sh -c "npm install --legacy-peer-deps && npm run agent:worker"
     ports:
       - "4000:4000"
     environment:
@@ -44,17 +48,18 @@ services:
       SPACETIMEDB_URL: http://spacetimedb:3000
     env_file:
       - .env.local
+    volumes:
+      - .:/app
+      - worker_node_modules:/app/node_modules
     depends_on:
       spacetimedb:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4000/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
 volumes:
   spacetimedb-data:
+    driver: local
+  app_node_modules:
+    driver: local
+  worker_node_modules:
     driver: local

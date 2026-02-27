@@ -377,6 +377,46 @@ export const remove_tracked_realm = spacetimedb.reducer(
   }
 );
 
+export const clear_all_votes = spacetimedb.reducer(
+  'clear_all_votes',
+  {},
+  (ctx) => {
+    // Delete all votes
+    const voteIds: bigint[] = [];
+    for (const vote of ctx.db.votes.iter()) {
+      voteIds.push(vote.id);
+    }
+    for (const id of voteIds) {
+      ctx.db.votes.id.delete(id);
+    }
+
+    // Reset agent total_votes to 0
+    const agentUpdates: { id: bigint }[] = [];
+    for (const agent of ctx.db.agents.iter()) {
+      agentUpdates.push({ id: agent.id });
+    }
+    for (const { id } of agentUpdates) {
+      const agent = ctx.db.agents.id.find(id);
+      if (agent) {
+        ctx.db.agents.id.update({
+          ...agent,
+          total_votes: 0,
+          updated_at: ctx.timestamp,
+        });
+      }
+    }
+
+    // Clear AI analyses too (stale from previous run)
+    const analysisIds: bigint[] = [];
+    for (const analysis of ctx.db.aiAnalyses.iter()) {
+      analysisIds.push(analysis.id);
+    }
+    for (const id of analysisIds) {
+      ctx.db.aiAnalyses.id.delete(id);
+    }
+  }
+);
+
 export const seed_tracked_realms = spacetimedb.reducer(
   'seed_tracked_realms',
   {},

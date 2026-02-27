@@ -11,7 +11,7 @@
  * - Audit log of all operations
  */
 
-import { SOLANA_CHAIN_CONFIG } from './constants';
+import { SOLANA_CHAIN_CONFIG, SPL_GOVERNANCE_PROGRAM_ID, SPL_GOVERNANCE_TEST_PROGRAM_ID } from './constants';
 
 // Privy API configuration
 const PRIVY_API_URL = 'https://api.privy.io/v1';
@@ -28,7 +28,7 @@ interface RateLimitEntry {
   resetAt: number;
 }
 const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_TRANSACTIONS_PER_HOUR = 5;
+const MAX_TRANSACTIONS_PER_HOUR = 50;
 const RATE_LIMIT_WINDOW_MS = 3600000; // 1 hour
 
 /**
@@ -85,11 +85,23 @@ export async function createPolicy(options?: {
 
   const maxLamports = Math.floor((options?.maxSolPerTx || 0.1) * 1e9);
 
+  const COMPUTE_BUDGET_PROGRAM_ID = 'ComputeBudget111111111111111111111111111111';
+  const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
+
+  const governanceProgramIds = [
+    SPL_GOVERNANCE_PROGRAM_ID,
+    SPL_GOVERNANCE_TEST_PROGRAM_ID,
+    COMPUTE_BUDGET_PROGRAM_ID,
+    SYSTEM_PROGRAM_ID,
+    ...(options?.allowedPrograms ?? []),
+  ];
+
   const policyPayload = {
     version: '1.0',
     name: 'Agent voting policy',
     chain_type: 'solana',
     rules: [
+      // Allow SOL transfers up to limit (for tx fees, etc.)
       {
         name: `Max ${options?.maxSolPerTx || 0.1} SOL per transaction`,
         method: 'signAndSendTransaction',
@@ -103,6 +115,20 @@ export async function createPolicy(options?: {
         ],
         action: 'ALLOW',
       },
+      // Allow SPL Governance program interactions (CastVote, etc.)
+      {
+        name: 'Allow SPL Governance voting',
+        method: 'signAndSendTransaction',
+        conditions: [
+          {
+            field_source: 'solana_program_instruction',
+            field: 'programId',
+            operator: 'in',
+            value: governanceProgramIds,
+          },
+        ],
+        action: 'ALLOW',
+      },
       {
         name: `Allow signTransaction with transfer limit`,
         method: 'signTransaction',
@@ -112,6 +138,19 @@ export async function createPolicy(options?: {
             field: 'Transfer.lamports',
             operator: 'lte',
             value: maxLamports.toString(),
+          },
+        ],
+        action: 'ALLOW',
+      },
+      {
+        name: 'Allow signTransaction for governance',
+        method: 'signTransaction',
+        conditions: [
+          {
+            field_source: 'solana_program_instruction',
+            field: 'programId',
+            operator: 'in',
+            value: governanceProgramIds,
           },
         ],
         action: 'ALLOW',
@@ -238,7 +277,7 @@ export async function signAndSendTransaction(options: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      method: 'solana_signAndSendTransaction',
+      method: 'signAndSendTransaction',
       caip2: SOLANA_CHAIN_CONFIG.caip2,
       params: {
         transaction: options.serializedTransaction,
@@ -253,7 +292,7 @@ export async function signAndSendTransaction(options: {
   }
 
   const result = await res.json();
-  const txHash = result.hash || result.signature || result.tx_hash;
+  const txHash = result.data?.hash || result.hash || result.signature || result.tx_hash;
 
   // Audit log
   auditLog({
@@ -312,6 +351,30 @@ export async function signTransaction(options: {
  */
 function auditLog(entry: Record<string, string>): void {
   console.log('[PRIVY_AUDIT]', JSON.stringify(entry));
+}
+
+/**
+ * Update a wallet's policy IDs (e.g., to attach a new governance-enabled policy).
+ */
+export async function updateWalletPolicy(walletId: string, policyIds: string[]): Promise<void> {
+  if (!PRIVY_APP_ID || !PRIVY_APP_SECRET) {
+    throw new Error('Privy credentials not configured');
+  }
+
+  const res = await fetch(`${PRIVY_API_URL}/wallets/${walletId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: getAuthHeader(),
+      'privy-app-id': PRIVY_APP_ID,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ policy_ids: policyIds }),
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(`Failed to update wallet policy: ${res.status} ${error}`);
+  }
 }
 
 /**

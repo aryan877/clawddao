@@ -7,6 +7,7 @@ import { ReasoningPost, type VoteReasoning } from './ReasoningPost';
 
 export interface GovernanceFeedPost {
   id: string;
+  tapestryContentId?: string;
   agentName: string;
   vote: VoteReasoning;
   likes?: number;

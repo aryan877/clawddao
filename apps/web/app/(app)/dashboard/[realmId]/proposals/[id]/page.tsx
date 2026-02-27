@@ -169,10 +169,20 @@ export default function ProposalDetailPage({
   }
 
   const proposal = proposalData.proposal;
-  const totalVotes = proposal.forVotes + proposal.againstVotes + (proposal.abstainVotes ?? 0);
-  const forPercent = totalVotes > 0 ? (proposal.forVotes / totalVotes) * 100 : 0;
-  const againstPercent = totalVotes > 0 ? (proposal.againstVotes / totalVotes) * 100 : 0;
-  const abstainPercent = totalVotes > 0 ? ((proposal.abstainVotes ?? 0) / totalVotes) * 100 : 0;
+
+  // Prefer STDB agent votes over on-chain counts (on-chain may be 0 when txs fail)
+  const agentFor = proposalData.autonomousVotes.filter((v) => v.vote === 'for').length;
+  const agentAgainst = proposalData.autonomousVotes.filter((v) => v.vote === 'against').length;
+  const agentAbstain = proposalData.autonomousVotes.filter((v) => v.vote === 'abstain').length;
+  const hasAgentVotes = proposalData.autonomousVotes.length > 0;
+
+  const displayFor = hasAgentVotes ? agentFor : proposal.forVotes;
+  const displayAgainst = hasAgentVotes ? agentAgainst : proposal.againstVotes;
+  const displayAbstain = hasAgentVotes ? agentAbstain : (proposal.abstainVotes ?? 0);
+  const totalVotes = displayFor + displayAgainst + displayAbstain;
+  const forPercent = totalVotes > 0 ? (displayFor / totalVotes) * 100 : 0;
+  const againstPercent = totalVotes > 0 ? (displayAgainst / totalVotes) * 100 : 0;
+  const abstainPercent = totalVotes > 0 ? (displayAbstain / totalVotes) * 100 : 0;
 
   const proposalForPanel: Proposal = {
     address: proposal.address,
@@ -180,9 +190,9 @@ export default function ProposalDetailPage({
     title: proposal.title,
     description: proposal.descriptionLink || '',
     status: proposal.status as Proposal['status'],
-    forVotes: proposal.forVotes,
-    againstVotes: proposal.againstVotes,
-    abstainVotes: proposal.abstainVotes,
+    forVotes: displayFor,
+    againstVotes: displayAgainst,
+    abstainVotes: displayAbstain,
     deadline: proposal.votingCompletedAt
       ? new Date(proposal.votingCompletedAt)
       : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -250,7 +260,7 @@ export default function ProposalDetailPage({
                     For
                   </span>
                   <span className="text-sm font-semibold text-foreground">
-                    {formatNumber(proposal.forVotes)}{' '}
+                    {formatNumber(displayFor)}{' '}
                     <span className="text-xs text-muted-foreground">({forPercent.toFixed(1)}%)</span>
                   </span>
                 </div>
@@ -266,7 +276,7 @@ export default function ProposalDetailPage({
                     Against
                   </span>
                   <span className="text-sm font-semibold text-foreground">
-                    {formatNumber(proposal.againstVotes)}{' '}
+                    {formatNumber(displayAgainst)}{' '}
                     <span className="text-xs text-muted-foreground">({againstPercent.toFixed(1)}%)</span>
                   </span>
                 </div>
@@ -282,7 +292,7 @@ export default function ProposalDetailPage({
                     Abstain
                   </span>
                   <span className="text-sm font-semibold text-foreground">
-                    {formatNumber(proposal.abstainVotes ?? 0)}{' '}
+                    {formatNumber(displayAbstain)}{' '}
                     <span className="text-xs text-muted-foreground">({abstainPercent.toFixed(1)}%)</span>
                   </span>
                 </div>
@@ -343,9 +353,15 @@ export default function ProposalDetailPage({
                       </p>
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-4">{item.reasoning}</p>
                       {item.txSignature && (
-                        <p className="mt-2 text-[11px] text-muted-foreground">
-                          Tx: {item.txSignature.slice(0, 8)}...{item.txSignature.slice(-8)}
-                        </p>
+                        <a
+                          href={`https://explorer.solana.com/tx/${item.txSignature}?cluster=${process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet'}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {item.txSignature.slice(0, 8)}...{item.txSignature.slice(-8)}
+                        </a>
                       )}
                     </div>
                   ))}

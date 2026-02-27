@@ -1,9 +1,11 @@
 'use client';
 
-import { Heart, MessageCircle, Share2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import Link from 'next/link';
+import { Heart, MessageCircle } from 'lucide-react';
 import { cn, timeAgo } from '@shared/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { VoteIndicator } from './VoteIndicator';
+import { useFeed } from '@/components/providers/FeedProvider';
 import type { FeedItem } from '@/lib/feed-types';
 
 type ReasoningFeedItem = Extract<FeedItem, { kind: 'reasoning' }>;
@@ -37,58 +39,117 @@ function pickGradient(name: string) {
 export function ReasoningFeedCard({ item }: ReasoningFeedCardProps) {
   const { post } = item;
   const { vote } = post;
+  const { realms } = useFeed();
   const gradient = pickGradient(post.agentName);
   const confidencePercent = Math.round(vote.confidence * 100);
 
+  // Like state (optimistic)
+  const [likeCount, setLikeCount] = useState(post.likes ?? 0);
+  const [liked, setLiked] = useState(false);
+  const [liking, setLiking] = useState(false);
+
+  const handleLike = useCallback(async () => {
+    if (liking || !post.tapestryContentId) return;
+    setLiking(true);
+
+    const wasLiked = liked;
+    // Optimistic update
+    setLiked(!wasLiked);
+    setLikeCount((c) => (wasLiked ? c - 1 : c + 1));
+
+    try {
+      const res = await fetch('/api/tapestry/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contentId: post.tapestryContentId,
+          unlike: wasLiked,
+        }),
+      });
+      if (!res.ok) {
+        // Revert on failure
+        setLiked(wasLiked);
+        setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+      }
+    } catch {
+      // Revert on error
+      setLiked(wasLiked);
+      setLikeCount((c) => (wasLiked ? c + 1 : c - 1));
+    } finally {
+      setLiking(false);
+    }
+  }, [liked, liking, post.tapestryContentId]);
+
+  // Build proposal link
+  const realmAddress = realms[0]?.address;
+  const proposalHref =
+    vote.proposalAddress && realmAddress
+      ? `/dashboard/${realmAddress}/proposals/${vote.proposalAddress}`
+      : null;
+
   return (
-    <div className="flex gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-card/80">
-      {/* Vote indicator */}
-      <VoteIndicator type="reasoning" vote={vote.vote} />
-
-      {/* Content */}
-      <div className="min-w-0 flex-1">
-        {/* Agent header */}
-        <div className="flex items-center gap-2">
-          <div
-            className={cn(
-              'flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white',
-              gradient,
-            )}
-          >
-            {post.agentName.charAt(0).toUpperCase()}
-          </div>
-          <span className="text-xs font-semibold text-foreground">
-            {post.agentName}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {timeAgo(new Date(vote.createdAt))}
-          </span>
+    <div className="rounded-lg border border-border bg-card transition-colors hover:border-primary/20">
+      {/* Header: agent + time + vote badge */}
+      <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-0">
+        <div
+          className={cn(
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[10px] font-bold text-white',
+            gradient,
+          )}
+        >
+          {post.agentName.charAt(0).toUpperCase()}
         </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-foreground">
+              {post.agentName}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              voted
+            </span>
+            <Badge
+              variant="outline"
+              className={cn(
+                'border text-[10px] font-bold px-1.5 py-0',
+                VOTE_COLOR[vote.vote],
+              )}
+            >
+              {vote.vote}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground">
+              &middot; {timeAgo(new Date(vote.createdAt))}
+            </span>
+          </div>
+        </div>
+      </div>
 
-        {/* Proposal reference + vote badge */}
-        <div className="mt-1.5 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">RE:</span>
-          <span className="text-sm font-medium text-primary/80 hover:text-primary transition-colors cursor-pointer">
+      {/* Proposal reference */}
+      <div className="px-4 pt-1.5">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          on{' '}
+        </span>
+        {proposalHref ? (
+          <Link
+            href={proposalHref}
+            className="text-xs font-medium text-primary/80 hover:text-primary hover:underline transition-colors"
+          >
+            {vote.proposalTitle}
+          </Link>
+        ) : (
+          <span className="text-xs font-medium text-primary/80">
             {vote.proposalTitle}
           </span>
-          <Badge
-            variant="outline"
-            className={cn(
-              'ml-auto shrink-0 border text-[10px] font-semibold',
-              VOTE_COLOR[vote.vote],
-            )}
-          >
-            {vote.vote}
-          </Badge>
-        </div>
+        )}
+      </div>
 
-        {/* Reasoning text */}
-        <p className="mt-2 text-sm leading-relaxed text-foreground/90">
+      {/* Reasoning body */}
+      <div className="px-4 pt-2.5 pb-3">
+        <p className="text-sm leading-relaxed text-foreground/90">
           {vote.reasoning}
         </p>
 
         {/* Confidence bar */}
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-2.5">
           <span className="text-[10px] text-muted-foreground">Confidence</span>
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-secondary">
             <div
@@ -107,22 +168,34 @@ export function ReasoningFeedCard({ item }: ReasoningFeedCardProps) {
             {confidencePercent}%
           </span>
         </div>
+      </div>
 
-        {/* Action bar */}
-        <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-          <button className="flex items-center gap-1 hover:text-red-400 transition-colors">
-            <Heart className="h-3 w-3" />
-            {post.likes && post.likes > 0 ? post.likes : 'Like'}
-          </button>
-          <button className="flex items-center gap-1 hover:text-blue-400 transition-colors">
-            <MessageCircle className="h-3 w-3" />
-            {post.comments && post.comments > 0 ? post.comments : 'Comment'}
-          </button>
-          <button className="flex items-center gap-1 hover:text-primary transition-colors">
-            <Share2 className="h-3 w-3" />
-            Share
-          </button>
-        </div>
+      {/* Action bar */}
+      <div className="flex items-center gap-4 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+        <button
+          onClick={handleLike}
+          disabled={liking}
+          className={cn(
+            'flex items-center gap-1.5 transition-colors',
+            liked
+              ? 'text-red-400'
+              : 'hover:text-red-400',
+          )}
+        >
+          <Heart
+            className={cn('h-3.5 w-3.5', liked && 'fill-current')}
+          />
+          <span className="font-medium">
+            {likeCount > 0 ? likeCount : 'Like'}
+          </span>
+        </button>
+
+        {(post.comments ?? 0) > 0 && (
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span className="font-medium">{post.comments}</span>
+          </span>
+        )}
       </div>
     </div>
   );

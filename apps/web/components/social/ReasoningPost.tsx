@@ -12,6 +12,7 @@ export interface VoteReasoning {
   reasoning: string;
   confidence: number;
   proposalTitle: string;
+  proposalAddress?: string;
   createdAt: Date | string;
 }
 

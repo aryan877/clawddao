@@ -12,7 +12,7 @@ vi.mock('@shared/lib/governance', () => ({
 
 vi.mock('@shared/lib/stdb-client', () => ({
   getVotesByProposal: vi.fn(),
-  getAgentById: vi.fn(),
+  getAgentsByIds: vi.fn(),
 }));
 
 import {
@@ -21,7 +21,7 @@ import {
   serializeProposal,
   serializeVoteRecord,
 } from '@shared/lib/governance';
-import { getVotesByProposal, getAgentById } from '@shared/lib/stdb-client';
+import { getVotesByProposal, getAgentsByIds } from '@shared/lib/stdb-client';
 import { GET } from '@/app/api/governance/proposals/[address]/route';
 
 const mockFetchProposal = vi.mocked(fetchProposal);
@@ -29,7 +29,7 @@ const mockFetchVoteRecords = vi.mocked(fetchVoteRecords);
 const mockSerializeProposal = vi.mocked(serializeProposal);
 const mockSerializeVoteRecord = vi.mocked(serializeVoteRecord);
 const mockGetVotesByProposal = vi.mocked(getVotesByProposal);
-const mockGetAgentById = vi.mocked(getAgentById);
+const mockGetAgentsByIds = vi.mocked(getAgentsByIds);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ describe('GET /api/governance/proposals/[address]', () => {
     mockGetVotesByProposal.mockResolvedValue(autonomousVotes as never);
 
     const agent = { name: 'VoteBot', id: BigInt(10) };
-    mockGetAgentById.mockResolvedValue(agent as never);
+    mockGetAgentsByIds.mockResolvedValue(new Map([[BigInt(10), agent]]) as never);
 
     mockSerializeProposal.mockReturnValue({
       address: VALID_PROPOSAL_ADDRESS,
@@ -163,7 +163,7 @@ describe('GET /api/governance/proposals/[address]', () => {
       },
     ];
     mockGetVotesByProposal.mockResolvedValue(autonomousVotes as never);
-    mockGetAgentById.mockRejectedValue(new Error('Agent not found'));
+    mockGetAgentsByIds.mockRejectedValue(new Error('Agent not found'));
 
     mockSerializeProposal.mockReturnValue({
       address: VALID_PROPOSAL_ADDRESS,
