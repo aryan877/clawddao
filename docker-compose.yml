@@ -11,7 +11,7 @@ services:
       - spacetimedb-data:/var/lib/spacetimedb
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/database/ping"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
