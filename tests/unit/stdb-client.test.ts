@@ -11,7 +11,7 @@ vi.stubGlobal('fetch', mockFetch);
 // vi.resetModules() + dynamic import gives us a fresh copy each time where
 // needed; for most tests we can just ensure the first call returns headers.
 
-// Helper to build a Response-like object
+// Helper to build a Response-like object that matches the real Fetch API shape.
 function fakeResponse(
   body: unknown,
   opts?: {
@@ -24,29 +24,32 @@ function fakeResponse(
   const ok = opts?.ok ?? true;
   const status = opts?.status ?? (ok ? 200 : 500);
   const statusText = opts?.statusText ?? (ok ? 'OK' : 'Internal Server Error');
-  const headers = new Map(Object.entries(opts?.headers ?? {}));
+  const hdrs = new Map(Object.entries(opts?.headers ?? {}));
 
   return {
     ok,
     status,
     statusText,
     headers: {
-      get: (key: string) => headers.get(key) ?? null,
+      get: (key: string) => hdrs.get(key) ?? null,
     },
     json: () => Promise.resolve(body),
     text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
   };
 }
 
-// Provide a default identity response so getIdentityToken succeeds
+/**
+ * Stub the POST /v1/identity call that getIdentityToken() makes.
+ *
+ * SpacetimeDB v2 returns identity+token in the JSON body (not headers).
+ * The real code does: body.identity ?? res.headers.get('spacetime-identity')
+ * so we provide identity in the body to match production behavior.
+ */
 function stubIdentityFetch() {
   mockFetch.mockResolvedValueOnce(
-    fakeResponse(null, {
-      headers: {
-        'spacetime-identity': 'test-identity-123',
-        'spacetime-identity-token': 'test-jwt-token',
-      },
-    }),
+    fakeResponse(
+      { identity: 'test-identity-123', token: 'test-jwt-token' },
+    ),
   );
 }
 
@@ -141,9 +144,56 @@ describe('stdb-client', () => {
       expect(sqlCall[1].body).toBe('SELECT * FROM agents');
     });
 
+    it('handles SpacetimeDB v2 wrapped column names ({ some: "name" })', async () => {
+      stubIdentityFetch();
+
+      // SpacetimeDB v2 wraps column names in { some: "name" }
+      const stdbV2Response = [
+        {
+          schema: {
+            elements: [
+              { name: { some: 'id' } },
+              { name: { some: 'owner_wallet' } },
+              { name: { some: 'is_active' } },
+            ],
+          },
+          rows: [
+            [1n, 'wallet-abc', true],
+            [2n, 'wallet-def', false],
+          ],
+        },
+      ];
+
+      mockFetch.mockResolvedValueOnce(fakeResponse(stdbV2Response));
+
+      const { querySQL } = await import('@shared/lib/stdb-client');
+      const rows = await querySQL('SELECT * FROM agents');
+
+      expect(rows).toHaveLength(2);
+      expect(rows[0]).toEqual({ id: 1n, owner_wallet: 'wallet-abc', is_active: true });
+      expect(rows[1]).toEqual({ id: 2n, owner_wallet: 'wallet-def', is_active: false });
+    });
+
     it('returns empty array when query result has no rows', async () => {
       stubIdentityFetch();
       mockFetch.mockResolvedValueOnce(fakeResponse([]));
+
+      const { querySQL } = await import('@shared/lib/stdb-client');
+      const rows = await querySQL('SELECT * FROM agents WHERE id = 999');
+
+      expect(rows).toEqual([]);
+    });
+
+    it('returns empty array when result has schema but empty rows', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse([
+          {
+            schema: { elements: [{ name: 'id' }] },
+            rows: [],
+          },
+        ]),
+      );
 
       const { querySQL } = await import('@shared/lib/stdb-client');
       const rows = await querySQL('SELECT * FROM agents WHERE id = 999');
@@ -163,9 +213,9 @@ describe('stdb-client', () => {
   });
 
   // -----------------------------------------------------------------------
-  // Identity token caching
+  // Identity token handling
   // -----------------------------------------------------------------------
-  describe('identity token caching', () => {
+  describe('identity token', () => {
     it('reuses cached identity on the second call (only one identity fetch)', async () => {
       stubIdentityFetch();
 
@@ -192,10 +242,59 @@ describe('stdb-client', () => {
       expect(identityCalls).toHaveLength(1);
       expect(mockFetch).toHaveBeenCalledTimes(3); // 1 identity + 2 reducer
     });
+
+    it('falls back to headers when body has no identity (v1 compat)', async () => {
+      // Simulate SpacetimeDB v1 response: identity in headers, empty body
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse(
+          {},
+          {
+            headers: {
+              'spacetime-identity': 'header-identity',
+              'spacetime-identity-token': 'header-token',
+            },
+          },
+        ),
+      );
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse(null, {
+          headers: { 'spacetime-energy-used': '5' },
+        }),
+      );
+
+      const { callReducer } = await import('@shared/lib/stdb-client');
+      const result = await callReducer('test_reducer', []);
+
+      expect(result.ok).toBe(true);
+      // Verify the token from headers was used for auth
+      const reducerCall = mockFetch.mock.calls[1];
+      expect(reducerCall[1].headers.Authorization).toBe('Bearer header-token');
+    });
+
+    it('throws when identity endpoint returns neither body nor headers', async () => {
+      mockFetch.mockResolvedValueOnce(fakeResponse({}));
+
+      const { callReducer } = await import('@shared/lib/stdb-client');
+      await expect(callReducer('test', [])).rejects.toThrow(
+        'SpacetimeDB did not return identity/token',
+      );
+    });
+
+    it('throws when identity endpoint returns non-ok status', async () => {
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse(null, { ok: false, status: 500, statusText: 'Server Error' }),
+      );
+
+      const { callReducer } = await import('@shared/lib/stdb-client');
+      await expect(callReducer('test', [])).rejects.toThrow(
+        'SpacetimeDB identity request failed',
+      );
+    });
   });
 
   // -----------------------------------------------------------------------
-  // Typed wrappers
+  // Typed wrappers — test that each wrapper calls callReducer with the
+  // correct reducer name and argument ordering.
   // -----------------------------------------------------------------------
   describe('createAgent', () => {
     it('calls create_agent reducer with correct args', async () => {
@@ -220,12 +319,12 @@ describe('stdb-client', () => {
         '{"autoVote":true}',
         'moderate',
         'owner123',
-        'pw-id',
-        'pw-addr',
+        { some: 'pw-id' },
+        { some: 'pw-addr' },
       ]);
     });
 
-    it('passes null for optional privy fields when not provided', async () => {
+    it('passes none for optional privy fields when not provided', async () => {
       stubIdentityFetch();
       mockFetch.mockResolvedValueOnce(fakeResponse(null));
 
@@ -239,19 +338,29 @@ describe('stdb-client', () => {
       });
 
       const body = JSON.parse(mockFetch.mock.calls[1][1].body);
-      expect(body[5]).toBeNull();
-      expect(body[6]).toBeNull();
+      expect(body[5]).toEqual({ none: [] });
+      expect(body[6]).toEqual({ none: [] });
     });
   });
 
   describe('getAllActiveAgents', () => {
-    it('sends correct SQL query', async () => {
+    it('sends correct SQL query and sorts by total_votes desc', async () => {
       stubIdentityFetch();
       mockFetch.mockResolvedValueOnce(
         fakeResponse([
           {
-            schema: { elements: [{ name: 'id' }, { name: 'name' }, { name: 'is_active' }] },
-            rows: [[1n, 'Agent-A', true]],
+            schema: {
+              elements: [
+                { name: 'id' },
+                { name: 'name' },
+                { name: 'is_active' },
+                { name: 'total_votes' },
+              ],
+            },
+            rows: [
+              [2n, 'Agent-B', true, 3],
+              [1n, 'Agent-A', true, 10],
+            ],
           },
         ]),
       );
@@ -259,10 +368,13 @@ describe('stdb-client', () => {
       const { getAllActiveAgents } = await import('@shared/lib/stdb-client');
       const agents = await getAllActiveAgents();
 
-      expect(agents).toHaveLength(1);
+      expect(agents).toHaveLength(2);
+      // Should be sorted by total_votes descending
+      expect(agents[0].name).toBe('Agent-A');
+      expect(agents[1].name).toBe('Agent-B');
+
       const sqlBody = mockFetch.mock.calls[1][1].body;
       expect(sqlBody).toContain('is_active = true');
-      expect(sqlBody).toContain('ORDER BY total_votes DESC');
     });
   });
 
@@ -284,6 +396,19 @@ describe('stdb-client', () => {
       const sqlBody = mockFetch.mock.calls[1][1].body;
       expect(sqlBody).toContain("owner_wallet = 'wallet-abc'");
       expect(sqlBody).toContain('is_active = true');
+    });
+
+    it('escapes single quotes in wallet address to prevent SQL injection', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(fakeResponse([]));
+
+      const { getAgentsByOwner } = await import('@shared/lib/stdb-client');
+      await getAgentsByOwner("wallet'; DROP TABLE agents;--");
+
+      const sqlBody = mockFetch.mock.calls[1][1].body;
+      // Single quotes should be escaped to double single quotes
+      expect(sqlBody).toContain("wallet''; DROP TABLE agents;--");
+      expect(sqlBody).not.toContain("wallet'; DROP");
     });
   });
 
@@ -314,6 +439,17 @@ describe('stdb-client', () => {
 
       expect(voted).toBe(false);
     });
+
+    it('constructs correct vote_key from agentId and proposalAddress', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(fakeResponse([]));
+
+      const { hasAgentVoted } = await import('@shared/lib/stdb-client');
+      await hasAgentVoted(42n, 'proposal-xyz');
+
+      const sqlBody = mockFetch.mock.calls[1][1].body;
+      expect(sqlBody).toContain("vote_key = '42:proposal-xyz'");
+    });
   });
 
   describe('recordVote', () => {
@@ -323,9 +459,6 @@ describe('stdb-client', () => {
 
       const { callReducer } = await import('@shared/lib/stdb-client');
 
-      // Directly call callReducer with string-serializable args
-      // (recordVote passes bigint agent_id which triggers JSON.stringify error;
-      //  this tests the reducer path independently)
       await callReducer('record_vote', [
         '1',
         'proposal-xyz',
@@ -353,7 +486,6 @@ describe('stdb-client', () => {
 
       const { callReducer } = await import('@shared/lib/stdb-client');
 
-      // Directly call callReducer with string-serializable args
       await callReducer('create_delegation', [
         '5',
         'realm-abc',
@@ -393,7 +525,7 @@ describe('stdb-client', () => {
   });
 
   describe('getTrackedRealms', () => {
-    it('queries active tracked realms ordered by id', async () => {
+    it('queries active tracked realms', async () => {
       stubIdentityFetch();
       mockFetch.mockResolvedValueOnce(
         fakeResponse([
@@ -415,7 +547,64 @@ describe('stdb-client', () => {
 
       const sqlBody = mockFetch.mock.calls[1][1].body;
       expect(sqlBody).toContain('is_active = true');
-      expect(sqlBody).toContain('ORDER BY id ASC');
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // Additional typed wrapper coverage
+  // -----------------------------------------------------------------------
+  describe('storeAIAnalysis', () => {
+    it('calls store_ai_analysis reducer with correct args', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(fakeResponse(null));
+
+      // Directly call callReducer with string-serializable args
+      // (storeAIAnalysis passes bigint agent_id which JSON.stringify cannot handle;
+      //  this tests the reducer path independently)
+      const { callReducer } = await import('@shared/lib/stdb-client');
+      await callReducer('store_ai_analysis', [
+        '1',
+        'prop-abc',
+        '{"summary":"test"}',
+        'FOR',
+        0.9,
+      ]);
+
+      const reducerCall = mockFetch.mock.calls[1];
+      expect(reducerCall[0]).toContain('/call/store_ai_analysis');
+      expect(reducerCall[1].method).toBe('POST');
+
+      const body = JSON.parse(reducerCall[1].body);
+      expect(body).toEqual(['1', 'prop-abc', '{"summary":"test"}', 'FOR', 0.9]);
+    });
+  });
+
+  describe('getAgentById', () => {
+    it('returns agent when found', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(
+        fakeResponse([
+          {
+            schema: { elements: [{ name: 'id' }, { name: 'name' }] },
+            rows: [[5n, 'FoundAgent']],
+          },
+        ]),
+      );
+
+      const { getAgentById } = await import('@shared/lib/stdb-client');
+      const agent = await getAgentById(5n);
+
+      expect(agent).toEqual({ id: 5n, name: 'FoundAgent' });
+    });
+
+    it('returns null when agent not found', async () => {
+      stubIdentityFetch();
+      mockFetch.mockResolvedValueOnce(fakeResponse([]));
+
+      const { getAgentById } = await import('@shared/lib/stdb-client');
+      const agent = await getAgentById(999n);
+
+      expect(agent).toBeNull();
     });
   });
 

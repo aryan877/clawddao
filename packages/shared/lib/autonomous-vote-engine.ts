@@ -86,6 +86,48 @@ function buildAgentValuesPrompt(agent: AgentRow, config: ParsedAgentConfig): str
   ].join('\n');
 }
 
+async function tryPostToTapestry(
+  agent: AgentRow,
+  agentId: string,
+  proposalAddress: string,
+  vote: string,
+  reasoning: string,
+  confidence: number,
+): Promise<string | null> {
+  if (!process.env.TAPESTRY_API_KEY) return null;
+
+  try {
+    // Use owner_wallet for Tapestry profile — it's always a real Solana address.
+    // privy_wallet_address may not exist or may be a test placeholder.
+    const walletForProfile = agent.owner_wallet;
+    const profile = await getOrCreateProfile(walletForProfile, agent.name);
+    const profileId = profile?.profile?.id;
+
+    if (!profileId) {
+      console.warn(`[autonomous-vote-engine] No Tapestry profile ID returned for agent=${agentId}`);
+      return null;
+    }
+
+    const content = await postVoteReasoning(
+      profileId,
+      proposalAddress,
+      agentId,
+      vote,
+      reasoning,
+      confidence,
+    );
+
+    const contentCandidate = content as { id?: string; content?: { id?: string } };
+    return contentCandidate.id ?? contentCandidate.content?.id ?? null;
+  } catch (error) {
+    console.error(
+      `[autonomous-vote-engine] Tapestry post failed for agent=${agentId} proposal=${proposalAddress}`,
+      error,
+    );
+    return null;
+  }
+}
+
 export async function executeAutonomousVote(params: {
   agent: AgentRow;
   proposal: GovernanceProposalContext;
@@ -161,15 +203,21 @@ export async function executeAutonomousVote(params: {
 
   if (recommendation.confidence < config.confidenceThreshold) {
     const reason = `Confidence ${recommendation.confidence.toFixed(3)} below threshold ${config.confidenceThreshold.toFixed(3)}.`;
+    const fullReasoning = `${recommendation.reasoning}\n\n${reason}`;
+
+    // Post abstention reasoning to Tapestry (social transparency even for abstains)
+    const tapestryContentId = dryRun
+      ? null
+      : await tryPostToTapestry(agent, agentId, proposal.address, 'abstain', fullReasoning, recommendation.confidence);
 
     await recordVote({
       agent_id: agent.id,
       proposal_address: proposal.address,
       vote: 'abstain',
-      reasoning: `${recommendation.reasoning}\n\n${reason}`,
+      reasoning: fullReasoning,
       confidence: recommendation.confidence,
       tx_signature: null,
-      tapestry_content_id: null,
+      tapestry_content_id: tapestryContentId,
     });
 
     return {
@@ -180,9 +228,9 @@ export async function executeAutonomousVote(params: {
       skipReason: 'below_confidence_threshold',
       vote: 'abstain',
       confidence: recommendation.confidence,
-      reasoning: `${recommendation.reasoning}\n\n${reason}`,
+      reasoning: fullReasoning,
       txSignature: null,
-      tapestryContentId: null,
+      tapestryContentId,
     };
   }
 
@@ -201,54 +249,40 @@ export async function executeAutonomousVote(params: {
   }
 
   let txSignature: string | null = null;
-  let tapestryContentId: string | null = null;
 
-  try {
-    const { serializedTransaction } = await buildCastVoteTransaction({
-      proposalAddress: proposal.address,
-      voterWalletAddress: agent.privy_wallet_address,
-      voteDirection,
-    });
-
-    const txResult = await signAndSendTransaction({
-      walletId: agent.privy_wallet_id,
-      agentId,
-      serializedTransaction,
-    });
-
-    txSignature = txResult.txHash ?? null;
-  } catch (error) {
-    console.error(
-      `[autonomous-vote-engine] On-chain vote submission failed for agent=${agentId} proposal=${proposal.address}`,
-      error,
-    );
-  }
-
-  if (process.env.TAPESTRY_API_KEY) {
+  // Only attempt on-chain vote if the agent has a Privy wallet
+  if (agent.privy_wallet_id && agent.privy_wallet_address) {
     try {
-      const profile = await getOrCreateProfile(agent.privy_wallet_address, agent.name);
-      const profileId = profile?.profile?.id;
+      const { serializedTransaction } = await buildCastVoteTransaction({
+        proposalAddress: proposal.address,
+        voterWalletAddress: agent.privy_wallet_address,
+        voteDirection,
+      });
 
-      if (profileId) {
-        const content = await postVoteReasoning(
-          profileId,
-          proposal.address,
-          agentId,
-          voteDirection,
-          recommendation.reasoning,
-          recommendation.confidence,
-        );
+      const txResult = await signAndSendTransaction({
+        walletId: agent.privy_wallet_id,
+        agentId,
+        serializedTransaction,
+      });
 
-        const contentCandidate = content as { id?: string; content?: { id?: string } };
-        tapestryContentId = contentCandidate.id ?? contentCandidate.content?.id ?? null;
-      }
+      txSignature = txResult.txHash ?? null;
     } catch (error) {
       console.error(
-        `[autonomous-vote-engine] Tapestry post failed for agent=${agentId} proposal=${proposal.address}`,
+        `[autonomous-vote-engine] On-chain vote submission failed for agent=${agentId} proposal=${proposal.address}`,
         error,
       );
     }
   }
+
+  // Always post to Tapestry — uses owner_wallet for profile, independent of Privy wallet
+  const tapestryContentId = await tryPostToTapestry(
+    agent,
+    agentId,
+    proposal.address,
+    voteDirection,
+    recommendation.reasoning,
+    recommendation.confidence,
+  );
 
   await recordVote({
     agent_id: agent.id,

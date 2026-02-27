@@ -400,42 +400,4 @@ describe('autonomous-vote-engine', () => {
     });
   });
 
-  // -----------------------------------------------------------------------
-  // isAgentEligibleForAutonomy
-  // -----------------------------------------------------------------------
-  describe('isAgentEligibleForAutonomy', () => {
-    it('returns true for active agent with wallet and autoVote enabled', async () => {
-      const { isAgentEligibleForAutonomy } = await import(
-        '@shared/lib/autonomous-vote-engine'
-      );
-      const agent = makeAgent();
-      expect(isAgentEligibleForAutonomy(agent)).toBe(true);
-    });
-
-    it('returns false for inactive agent', async () => {
-      const { isAgentEligibleForAutonomy } = await import(
-        '@shared/lib/autonomous-vote-engine'
-      );
-      const agent = makeAgent({ is_active: false });
-      expect(isAgentEligibleForAutonomy(agent)).toBe(false);
-    });
-
-    it('returns false for agent without wallet', async () => {
-      const { isAgentEligibleForAutonomy } = await import(
-        '@shared/lib/autonomous-vote-engine'
-      );
-      const agent = makeAgent({ privy_wallet_id: null });
-      expect(isAgentEligibleForAutonomy(agent)).toBe(false);
-    });
-
-    it('returns false when autoVote is disabled', async () => {
-      const { isAgentEligibleForAutonomy } = await import(
-        '@shared/lib/autonomous-vote-engine'
-      );
-      const agent = makeAgent({
-        config_json: JSON.stringify({ autoVote: false }),
-      });
-      expect(isAgentEligibleForAutonomy(agent)).toBe(false);
-    });
-  });
 });

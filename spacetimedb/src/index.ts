@@ -1,7 +1,7 @@
 // SpacetimeDB Server Module — ClawdDAO
 // This module stores APP-GENERATED data only (agents, votes, delegations, activity).
 // Governance data (realms, proposals) is read directly from Solana RPC — not mirrored here.
-// Deploy with: spacetime publish clawddao --project-path spacetimedb/
+// Deploy with: spacetime publish clawddao -p spacetimedb/
 
 import { schema, table, t } from 'spacetimedb/server';
 
@@ -262,7 +262,7 @@ export const create_delegation = spacetimedb.reducer(
       agent_id: args.agent_id,
       action_type: 'delegate',
       description: `Received delegation from ${args.delegator_wallet.slice(0, 8)}... for realm ${args.realm_address.slice(0, 8)}...`,
-      metadata_json: JSON.stringify({ realm: args.realm_address, scope: args.scope_bitmap }),
+      metadata_json: JSON.stringify({ realm: args.realm_address, scope: args.scope_bitmap.toString() }),
       created_at: ctx.timestamp,
     });
   }

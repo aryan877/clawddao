@@ -42,11 +42,23 @@ async function getIdentityToken(): Promise<{ identity: string; token: string }> 
 }
 
 function escapeSqlString(value: string): string {
-  return value.replace(/'/g, "''");
+  // Escape characters that could break out of SQL string literals.
+  // SpacetimeDB uses a SQLite-like SQL dialect; single-quote doubling is the
+  // primary escape, but we also strip null bytes and backslash-escape
+  // backslashes to prevent multi-byte bypass attacks.
+  return value
+    .replace(/\0/g, '')       // strip null bytes
+    .replace(/\\/g, '\\\\')   // escape backslashes
+    .replace(/'/g, "''");      // double single quotes
 }
 
 function toVoteKey(agentId: bigint, proposalAddress: string): string {
   return `${agentId.toString()}:${proposalAddress}`;
+}
+
+/** Wrap a value for SpacetimeDB option types: {some: v} or {none: []} */
+function option(value: unknown): { some: unknown } | { none: [] } {
+  return value != null ? { some: value } : { none: [] };
 }
 
 /**
@@ -73,7 +85,7 @@ export async function callReducer(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(args),
+    body: JSON.stringify(args, (_k, v) => typeof v === 'bigint' ? Number(v) : v),
   });
 
   const result = {
@@ -138,7 +150,13 @@ export async function querySQL<T = Record<string, unknown>>(
   return firstResult.rows.map((row) => {
     const obj: Record<string, unknown> = {};
     for (let i = 0; i < columnNames.length; i++) {
-      obj[columnNames[i]] = row[i];
+      const val = row[i];
+      // SpacetimeDB returns option types as [0, value] (some) or [1] (none)
+      if (Array.isArray(val) && (val.length === 1 || val.length === 2)) {
+        obj[columnNames[i]] = val[0] === 0 && val.length === 2 ? val[1] : null;
+      } else {
+        obj[columnNames[i]] = val;
+      }
     }
     return obj as T;
   });
@@ -163,8 +181,8 @@ export async function createAgent(params: {
     params.config_json,
     params.risk_tolerance,
     params.owner_wallet,
-    params.privy_wallet_id ?? null,
-    params.privy_wallet_address ?? null,
+    option(params.privy_wallet_id),
+    option(params.privy_wallet_address),
   ]);
 }
 
@@ -176,9 +194,9 @@ export async function updateAgent(params: {
 }) {
   return callReducer('update_agent', [
     params.agent_id,
-    params.name ?? null,
-    params.config_json ?? null,
-    params.is_active ?? null,
+    option(params.name),
+    option(params.config_json),
+    option(params.is_active),
   ]);
 }
 
@@ -197,8 +215,8 @@ export async function recordVote(params: {
     params.vote,
     params.reasoning,
     params.confidence,
-    params.tx_signature ?? null,
-    params.tapestry_content_id ?? null,
+    option(params.tx_signature),
+    option(params.tapestry_content_id),
   ]);
 }
 

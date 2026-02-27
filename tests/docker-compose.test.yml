@@ -1,0 +1,20 @@
+# Isolated SpacetimeDB instance for integration tests.
+# Port 3200 to avoid conflicting with dev (3000) or prod (3100).
+# Usage: docker compose -f tests/docker-compose.test.yml up -d
+services:
+  spacetimedb-test:
+    image: clockworklabs/spacetime:latest
+    container_name: clawddao-spacetimedb-test
+    command: start
+    ports:
+      - "3200:3000"
+    environment:
+      RUST_LOG: spacetimedb=warn
+    tmpfs:
+      - /var/lib/spacetimedb
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s

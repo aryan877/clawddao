@@ -66,10 +66,125 @@ describe('ai', () => {
       expect(mockCreate).toHaveBeenCalledTimes(1);
       const callArgs = mockCreate.mock.calls[0][0];
       expect(callArgs.model).toBe('glm-5');
-      expect(callArgs.max_tokens).toBe(1024);
+      expect(callArgs.max_tokens).toBe(2048);
       expect(callArgs.messages).toHaveLength(2);
       expect(callArgs.messages[0].role).toBe('system');
       expect(callArgs.messages[1].role).toBe('user');
+    });
+
+    it('extracts JSON from { } braces when not in code block', async () => {
+      const analysisData = {
+        summary: 'A small parameter change.',
+        risk_assessment: {
+          treasury_impact: 'None',
+          security_risk: 'None',
+          centralization_risk: 'None',
+          overall_risk_score: 5,
+        },
+        recommendation: {
+          vote: 'FOR',
+          confidence: 0.95,
+          reasoning: 'Trivial change with no risk.',
+          conditions: [],
+        },
+      };
+
+      // GLM-5 sometimes returns prose before/after the JSON object
+      const mixedResponse = `Here is my analysis:\n${JSON.stringify(analysisData)}\n\nHope this helps!`;
+
+      mockCreate.mockResolvedValueOnce({
+        choices: [{ message: { content: mixedResponse } }],
+      });
+
+      const { analyzeProposal } = await import('@shared/lib/ai');
+      const result = await analyzeProposal({
+        title: 'Param Change',
+        description: 'Update fee to 0.1%',
+        realmName: 'DAO',
+        forVotes: 500,
+        againstVotes: 10,
+      });
+
+      expect(result.recommendation.vote).toBe('FOR');
+      expect(result.recommendation.confidence).toBe(0.95);
+    });
+
+    it('uses reasoning_content field when content is empty (GLM-5 deep think)', async () => {
+      const analysisData = {
+        summary: 'Deep think analysis.',
+        risk_assessment: {
+          treasury_impact: 'High',
+          security_risk: 'Medium',
+          centralization_risk: 'Low',
+          overall_risk_score: 60,
+        },
+        recommendation: {
+          vote: 'AGAINST',
+          confidence: 0.7,
+          reasoning: 'Too risky for treasury.',
+          conditions: ['Need audit first'],
+        },
+      };
+
+      mockCreate.mockResolvedValueOnce({
+        choices: [
+          {
+            message: {
+              content: null,
+              reasoning_content: JSON.stringify(analysisData),
+            },
+          },
+        ],
+      });
+
+      const { analyzeProposal } = await import('@shared/lib/ai');
+      const result = await analyzeProposal({
+        title: 'Big Spend',
+        description: 'Spend 50% of treasury',
+        realmName: 'DAO',
+        forVotes: 100,
+        againstVotes: 900,
+      });
+
+      expect(result.recommendation.vote).toBe('AGAINST');
+      expect(result.risk_assessment.overall_risk_score).toBe(60);
+    });
+
+    it('throws on invalid JSON response', async () => {
+      mockCreate.mockResolvedValueOnce({
+        choices: [{ message: { content: 'This is not JSON at all' } }],
+      });
+
+      const { analyzeProposal } = await import('@shared/lib/ai');
+      await expect(
+        analyzeProposal({
+          title: 'Test',
+          description: 'Test',
+          realmName: 'DAO',
+          forVotes: 0,
+          againstVotes: 0,
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('throws on JSON that fails Zod schema validation', async () => {
+      // Valid JSON but missing required fields
+      mockCreate.mockResolvedValueOnce({
+        choices: [
+          { message: { content: JSON.stringify({ summary: 'only summary' }) } },
+        ],
+      });
+
+      const { analyzeProposal } = await import('@shared/lib/ai');
+      await expect(
+        analyzeProposal({
+          title: 'Test',
+          description: 'Test',
+          realmName: 'DAO',
+          forVotes: 0,
+          againstVotes: 0,
+        }),
+      ).rejects.toThrow();
     });
 
     it('extracts JSON from markdown code blocks', async () => {

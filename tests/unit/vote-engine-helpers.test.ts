@@ -29,7 +29,7 @@ function makeAgentRow(overrides: Partial<AgentRow> = {}): AgentRow {
 
 describe('isAgentEligibleForAutonomy()', () => {
   // -------------------------------------------------------------------------
-  // Eligible: active agent with wallet + autoVote enabled
+  // Eligible: active + wallet + autoVote — all three required
   // -------------------------------------------------------------------------
   it('returns true for active agent with wallet and autoVote enabled', () => {
     const agent = makeAgentRow();
@@ -125,7 +125,7 @@ describe('isAgentEligibleForAutonomy()', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Edge cases: all conditions must be true simultaneously
+  // Edge cases: all three conditions must be true simultaneously
   // -------------------------------------------------------------------------
   it('returns false when active + autoVote but missing wallet', () => {
     const agent = makeAgentRow({
