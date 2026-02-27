@@ -1,0 +1,13 @@
+clawddao.aryankumar.dev {
+    # SpacetimeDB WebSocket + API
+    handle /database/* {
+        reverse_proxy spacetimedb:3000
+    }
+    handle /v1/* {
+        reverse_proxy spacetimedb:3000
+    }
+    # Next.js app (default)
+    handle {
+        reverse_proxy app:3000
+    }
+}

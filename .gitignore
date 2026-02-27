@@ -47,5 +47,8 @@ next-env.d.ts
 # spacetimedb build output
 spacetimedb/dist/
 
+# spacetimedb backup data
+stdb-backup/
+
 # claude
 CLAUDE.md

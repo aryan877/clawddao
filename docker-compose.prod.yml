@@ -1,20 +1,38 @@
 services:
+  caddy:
+    image: caddy:latest
+    container_name: clawddao-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - clawddao
+
   spacetimedb:
     image: clockworklabs/spacetime:latest
     container_name: clawddao-spacetimedb
     command: start
-    ports:
-      - "3100:3000"
-    environment:
-      RUST_LOG: spacetimedb=info
     volumes:
       - spacetimedb-data:/var/lib/spacetimedb
+    environment:
+      RUST_LOG: spacetimedb=info
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/v1/ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - clawddao
 
   app:
     build:
@@ -22,8 +40,6 @@ services:
       dockerfile: Dockerfile
     container_name: clawddao-app
     command: sh -c "cd apps/web && npx next start -p 3000"
-    ports:
-      - "3001:3000"
     environment:
       NODE_ENV: production
       SPACETIMEDB_URL: http://spacetimedb:3000
@@ -38,6 +54,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - clawddao
 
   worker:
     build:
@@ -63,7 +81,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    networks:
+      - clawddao
 
 volumes:
   spacetimedb-data:
-    driver: local
+  caddy_data:
+  caddy_config:
+
+networks:
+  clawddao:
+    driver: bridge
